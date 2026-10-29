@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+venv/
+.venv/
+
+# VS Code
+.vscode/
+
+# Generated OCR crops
+dataset/
+ground_truth.csv
+
+# Generated benchmark samples
+chatgpt_test50/
+chatgpt_test50.csv
+
+# Generated OCR results
+results_*.csv
+ocr_comparison_*.csv
+
+# MangaLMM generated data/results
+official_mangaocr_test50/
+mangallmm_pages_test/
+mangallmm_tiled_batch/
+mangallmm_page_metrics.csv
+mangallmm_summary.txt
+
+# Logs / temporary files
+*.log
+*.tmp
