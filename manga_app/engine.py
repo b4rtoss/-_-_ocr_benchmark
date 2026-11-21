@@ -30,8 +30,9 @@ class Analyzer:
     def __init__(self):
         self.ocr = None
         self.language = None
+        self.device = "cpu"
 
-    def recognize(self, image, language):
+    def initialize_ocr(self, language):
         if self.ocr is None or self.language != language:
             import os
             import tempfile
@@ -39,10 +40,15 @@ class Analyzer:
             cache.mkdir(parents=True, exist_ok=True)
             os.environ.setdefault('PADDLE_PDX_CACHE_HOME', str(cache))
             from paddleocr import PaddleOCR
-            self.ocr = PaddleOCR(lang=language, device='cpu', ocr_version='PP-OCRv5', cpu_threads=4,
+            self.ocr = PaddleOCR(lang=language, device=self.device, ocr_version='PP-OCRv5', cpu_threads=4,
+                # Windows oneDNN fails on PP-OCRv5 with Paddle 3.3.1.
+                enable_mkldnn=(os.name != "nt"),
                 use_doc_orientation_classify=False, use_doc_unwarping=False,
                 use_textline_orientation=False)
             self.language = language
+
+    def recognize(self, image, language):
+        self.initialize_ocr(language)
         import numpy as np
         regions = []
         for result in self.ocr.predict(np.array(image)[:, :, ::-1].copy()):
@@ -86,14 +92,19 @@ class Analyzer:
                 'OCR может ошибаться и порядок его строк приблизительный.\nOCR:\n' +
                 '\n'.join(r['text'] for r in record['regions']) +
                 '\nКонтекст предыдущих страниц (может содержать ошибки):\n' + context[-12000:])
-            response = request_json('chat', {'model': model, 'stream': False, 'think': False,
-                'messages': [{'role': 'user', 'content': prompt,
-                              'images': [base64.b64encode(buffer.getvalue()).decode('ascii')]}],
-                'options': {'temperature': 0.7, 'top_p': 0.8, 'repeat_penalty': 1.12,
-                            'num_ctx': 8192, 'num_predict': 2500}})
-            record['analysis'] = response.get('message', {}).get('content', '').strip()
-            if response.get('done_reason') == 'length':
-                record['warnings'].append('Модель достигла лимита ответа: часть анализа может отсутствовать.')
-            if not record['analysis']:
-                raise RuntimeError('Модель вернула пустой анализ.')
+            try:
+                response = request_json('chat', {'model': model, 'stream': False, 'think': False,
+                    'messages': [{'role': 'user', 'content': prompt,
+                                  'images': [base64.b64encode(buffer.getvalue()).decode('ascii')]}],
+                    'options': {'temperature': 0.7, 'top_p': 0.8, 'repeat_penalty': 1.12,
+                                'num_ctx': 8192, 'num_predict': 2500}})
+                record['analysis'] = response.get('message', {}).get('content', '').strip()
+                if response.get('done_reason') == 'length':
+                    record['warnings'].append('Модель достигла лимита ответа: часть анализа может отсутствовать.')
+                if not record['analysis']:
+                    raise RuntimeError('Модель вернула пустой анализ.')
+            except Exception as exc:
+                if not record['regions']:
+                    raise
+                record['warnings'].append('Анализ Ollama: ' + str(exc))
         return record

@@ -1,3 +1,4 @@
+from benchmark_paths import BASE_DIR, IMAGE_DIR
 import re
 import gc
 import json
@@ -21,18 +22,9 @@ from transformers import (
 # НАСТРОЙКИ
 # =========================================================
 
-ROOT = (
-    Path.home()
-    / "Desktop"
-    / "Новая папка"
-    / "Manga109S_released_2026_05_21"
-)
+# IMAGE_DIR is supplied by benchmark_paths.
 
-IMAGE_DIR = ROOT / "images" / "Hamlet"
-
-OUTPUT_DIR = Path(
-    r"C:\mangalmm_test\mangallmm_tiled_batch"
-)
+OUTPUT_DIR = BASE_DIR / 'mangallmm_tiled_batch'
 
 OUTPUT_DIR.mkdir(
     parents=True,

@@ -1,209 +1,49 @@
-import os
+"""Extract annotated Hamlet text crops and their reference transcription."""
 import csv
 import xml.etree.ElementTree as ET
 from PIL import Image
-# =========================================================
-# ПУТИ
-# =========================================================
+from benchmark_paths import BASE_DIR, IMAGE_DIR, XML_PATH
 
-BASE_DIR = os.path.dirname(
-    os.path.abspath(__file__)
-)
-
-IMAGE_DIR = os.path.join(
-    BASE_DIR,
-    "Hamlet"
-)
-
-XML_PATH = os.path.join(
-    IMAGE_DIR,
-    "Hamlet.xml"
-)
-
-OUTPUT_DIR = os.path.join(
-    BASE_DIR,
-    "dataset"
-)
-
-CSV_PATH = os.path.join(
-    BASE_DIR,
-    "ground_truth.csv"
-)
-
-# Небольшой отступ вокруг текста
 PADDING = 5
-
-# =========================================================
-# СОЗДАЁМ ПАПКУ
-# =========================================================
-
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+FIELDS = ['file', 'text', 'page', 'xmin', 'ymin', 'xmax', 'ymax', 'text_id']
 
 
-# =========================================================
-# ЧИТАЕМ XML
-# =========================================================
-
-tree = ET.parse(XML_PATH)
-root = tree.getroot()
-
-rows = []
-
-crop_number = 1
-
-
-# =========================================================
-# ОБХОДИМ СТРАНИЦЫ
-# =========================================================
-
-for page in root.findall(".//page"):
-
-    page_index = int(page.attrib["index"])
-
-    # Например page index=10 -> 010.jpg
-    base_name = f"{page_index:03d}"
-
-    # Ищем изображение
-    image_path = None
-
-    for ext in [".jpg", ".jpeg", ".png", ".JPG", ".JPEG", ".PNG"]:
-
-        candidate = os.path.join(
-            IMAGE_DIR,
-            base_name + ext
-        )
-
-        if os.path.exists(candidate):
-            image_path = candidate
-            break
-
-
-    if image_path is None:
-        print(
-            f"WARNING: image for page {page_index} not found"
-        )
-        continue
-
-
-    image = Image.open(image_path).convert("RGB")
-
-    width, height = image.size
-
-
-    # =====================================================
-    # ВСЕ TEXT BOX НА ЭТОЙ СТРАНИЦЕ
-    # =====================================================
-
-    for text_element in page.findall("text"):
-
-        text = (text_element.text or "").strip()
-
-        if not text:
+def main():
+    root = ET.parse(XML_PATH).getroot()
+    output = BASE_DIR / 'dataset'
+    output.mkdir(parents=True, exist_ok=True)
+    rows = []
+    for page in root.findall('.//page'):
+        index = int(page.attrib['index'])
+        image_path = next((IMAGE_DIR / f'{index:03d}{ext}'
+                           for ext in ['.jpg', '.jpeg', '.png', '.JPG', '.JPEG', '.PNG']
+                           if (IMAGE_DIR / f'{index:03d}{ext}').is_file()), None)
+        if image_path is None:
+            print(f'WARNING: image for page {index} not found')
             continue
+        with Image.open(image_path) as source:
+            image = source.convert('RGB')
+        for element in page.findall('text'):
+            text = (element.text or '').strip()
+            if not text:
+                continue
+            xmin, ymin, xmax, ymax = (int(element.attrib[k]) for k in ['xmin', 'ymin', 'xmax', 'ymax'])
+            box = (max(0, xmin - PADDING), max(0, ymin - PADDING),
+                   min(image.width, xmax + PADDING), min(image.height, ymax + PADDING))
+            if box[2] <= box[0] or box[3] <= box[1]:
+                raise ValueError(f'Invalid text box on page {index}: {element.attrib}')
+            name = f'{len(rows) + 1:05d}.jpg'
+            image.crop(box).save(output / name, quality=95)
+            rows.append(dict(zip(FIELDS, [name, text, index, xmin, ymin, xmax, ymax, element.get('id', '')])))
+    if not rows:
+        raise ValueError('No annotated crops found. Check the XML and image directory.')
+    csv_path = BASE_DIR / 'ground_truth.csv'
+    with csv_path.open('w', newline='', encoding='utf-8-sig') as stream:
+        writer = csv.DictWriter(stream, fieldnames=FIELDS)
+        writer.writeheader()
+        writer.writerows(rows)
+    print(f'Dataset created: {len(rows)} crops in {output}; ground truth: {csv_path}')
 
 
-        xmin = int(text_element.attrib["xmin"])
-        ymin = int(text_element.attrib["ymin"])
-        xmax = int(text_element.attrib["xmax"])
-        ymax = int(text_element.attrib["ymax"])
-
-
-        # Добавляем небольшой padding
-        left = max(0, xmin - PADDING)
-        top = max(0, ymin - PADDING)
-
-        right = min(width, xmax + PADDING)
-        bottom = min(height, ymax + PADDING)
-
-
-        crop = image.crop(
-            (left, top, right, bottom)
-        )
-
-
-        crop_name = f"{crop_number:05d}.jpg"
-
-        crop_path = os.path.join(
-            OUTPUT_DIR,
-            crop_name
-        )
-
-        crop.save(
-            crop_path,
-            quality=95
-        )
-
-
-        rows.append({
-            "file": crop_name,
-            "text": text,
-
-            "page": page_index,
-
-            "xmin": xmin,
-            "ymin": ymin,
-            "xmax": xmax,
-            "ymax": ymax,
-
-            "text_id": text_element.attrib.get(
-                "id",
-                ""
-            )
-        })
-
-
-        crop_number += 1
-
-
-# =========================================================
-# СОХРАНЯЕМ GROUND TRUTH
-# =========================================================
-
-with open(
-    CSV_PATH,
-    "w",
-    newline="",
-    encoding="utf-8-sig"
-) as f:
-
-    writer = csv.DictWriter(
-        f,
-        fieldnames=[
-            "file",
-            "text",
-            "page",
-            "xmin",
-            "ymin",
-            "xmax",
-            "ymax",
-            "text_id"
-        ]
-    )
-
-    writer.writeheader()
-    writer.writerows(rows)
-
-
-# =========================================================
-# ИТОГ
-# =========================================================
-
-print()
-print("======================================")
-print("DATASET CREATED")
-print("======================================")
-
-print(
-    "Number of text crops:",
-    len(rows)
-)
-
-print(
-    "Images:",
-    OUTPUT_DIR
-)
-
-print(
-    "Ground truth:",
-    CSV_PATH
-)
+if __name__ == '__main__':
+    main()

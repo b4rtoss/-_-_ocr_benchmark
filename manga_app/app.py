@@ -7,7 +7,10 @@ import tkinter.font as tkfont
 from tkinter import filedialog, messagebox, ttk
 from pathlib import Path
 from PIL import ImageTk, ImageDraw
-from engine import Analyzer, EXTENSIONS, natural_key, load_image, request_json
+if __package__:
+    from .engine import Analyzer, EXTENSIONS, natural_key, load_image, request_json
+else:
+    from engine import Analyzer, EXTENSIONS, natural_key, load_image, request_json
 
 class App(tk.Tk):
     def __init__(self):
@@ -140,11 +143,15 @@ class App(tk.Tk):
             self.add([p for p in Path(folder).iterdir() if p.is_file()])
 
     def clear(self):
+        if self.busy:
+            return
         self.files.clear()
         self.records.clear()
         self.pages.delete(0, 'end')
         self.canvas.delete('all')
         self.text.delete('1.0', 'end')
+        self.progress.configure(value=0)
+        self.status.set('Выберите страницы новой главы.')
 
     def show(self, event=None):
         selected = self.pages.curselection()
@@ -154,6 +161,7 @@ class App(tk.Tk):
         record = self.records.get(path, {})
         self.text.delete('1.0', 'end')
         self.text.insert('end', self.format_record(record) if record else 'Страница ещё не проанализирована.')
+        self.canvas.delete('all')
         try:
             image = load_image(path)
             draw = ImageDraw.Draw(image)
@@ -182,14 +190,18 @@ class App(tk.Tk):
     def start(self):
         if self.busy or not self.files:
             return
+        story, model = self.mode.get(), self.model.get().strip()
+        if story and not model:
+            messagebox.showerror('Настройки', 'Укажите модель Ollama или отключите анализ сюжета.')
+            return
         self.busy = True
+        self.language_select.configure(state='disabled')
         self.stop_holder.pack(side='left', padx=(8, 0))
         self.cancel.clear()
         for button in self.controls:
             button.configure(state='disabled')
         paths = list(self.files)
         language = {'Японский': 'japan', 'Английский': 'en', 'Русский': 'ru'}[self.lang.get()]
-        story, model = self.mode.get(), self.model.get().strip()
         self.progress.configure(value=0, maximum=len(paths))
         def worker():
             context = ''
@@ -230,6 +242,7 @@ class App(tk.Tk):
                     messagebox.showerror('Не удалось запустить анализ', value)
                 elif kind == 'done':
                     self.busy = False
+                    self.language_select.configure(state="readonly")
                     self.stop_holder.pack_forget()
                     for button in self.controls:
                         button.configure(state='normal')

@@ -1,3 +1,4 @@
+from benchmark_paths import BASE_DIR
 import csv
 import re
 import unicodedata
@@ -8,7 +9,7 @@ from pathlib import Path
 # PATHS
 # ============================================================
 
-BASE = Path(r"C:\mangalmm_test")
+BASE = BASE_DIR
 
 CHATGPT_CSV = BASE / "chatgpt_test50.csv"
 

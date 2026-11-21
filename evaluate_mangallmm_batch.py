@@ -1,3 +1,4 @@
+from benchmark_paths import BASE_DIR, XML_PATH
 import csv
 import json
 import re
@@ -10,26 +11,13 @@ from pathlib import Path
 # PATHS
 # =========================================================
 
-ROOT = (
-    Path.home()
-    / "Desktop"
-    / "Новая папка"
-    / "Manga109S_released_2026_05_21"
-)
+# XML_PATH is supplied by benchmark_paths.
 
-XML_PATH = ROOT / "annotations" / "Hamlet.xml"
+RESULT_DIR = BASE_DIR / 'mangallmm_tiled_batch'
 
-RESULT_DIR = Path(
-    r"C:\mangalmm_test\mangallmm_tiled_batch"
-)
+PAGE_CSV = BASE_DIR / 'mangallmm_page_metrics.csv'
 
-PAGE_CSV = Path(
-    r"C:\mangalmm_test\mangallmm_page_metrics.csv"
-)
-
-SUMMARY_TXT = Path(
-    r"C:\mangalmm_test\mangallmm_summary.txt"
-)
+SUMMARY_TXT = BASE_DIR / 'mangallmm_summary.txt'
 
 
 # =========================================================

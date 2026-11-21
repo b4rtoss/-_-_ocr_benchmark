@@ -1,3 +1,4 @@
+from benchmark_paths import BASE_DIR, MANGA109_ROOT
 import json
 import random
 import shutil
@@ -14,18 +15,13 @@ SAMPLE_SIZE = 50
 RANDOM_SEED = 42
 
 # Твой уже скачанный Manga109
-MANGA_ROOT = (
-    Path.home()
-    / "Desktop"
-    / "Новая папка"
-    / "Manga109S_released_2026_05_21"
-)
+MANGA_ROOT = MANGA109_ROOT
 
+if MANGA_ROOT is None:
+    raise RuntimeError("Set MANGA109_ROOT to the Manga109 dataset directory (images/ and annotations/).")
 IMAGE_ROOT = MANGA_ROOT / "images"
 
-OUTPUT_DIR = Path(
-    r"C:\mangalmm_test\official_mangaocr_test50"
-)
+OUTPUT_DIR = BASE_DIR / 'official_mangaocr_test50'
 
 IMAGE_OUTPUT = OUTPUT_DIR / "images"
 

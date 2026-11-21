@@ -32,3 +32,7 @@ mangallmm_summary.txt
 # Logs / temporary files
 *.log
 *.tmp
+# Local verification artifacts
+.smoke/
+smoke-*.jpg
+smoke-*.csv

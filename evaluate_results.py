@@ -1,9 +1,12 @@
+from benchmark_paths import BASE_DIR
+import argparse
+import math
+from pathlib import Path
 import csv
 import os
 import unicodedata
 
 
-BASE_DIR = r"C:\mangalmm_test"
 
 FILES = {
     "Tesseract": os.path.join(
@@ -105,6 +108,7 @@ def evaluate(csv_path):
     failed_samples = 0
 
     times = []
+    seen = set()
 
 
     with open(
@@ -116,7 +120,13 @@ def evaluate(csv_path):
 
         reader = csv.DictReader(f)
 
+        required = {'file', 'ground_truth', 'prediction', 'time_sec'}
+        if not required.issubset(reader.fieldnames or []):
+            raise ValueError(f'{csv_path}: missing required CSV columns')
         for row in reader:
+            if not row['file'] or row['file'] in seen:
+                raise ValueError(f'{csv_path}: empty or duplicate file name')
+            seen.add(row['file'])
 
             reference = normalize(
                 row.get(
@@ -161,21 +171,20 @@ def evaluate(csv_path):
                 exact_matches += 1
 
 
-            try:
-                times.append(
-                    float(
-                        row.get(
-                            "time_sec",
-                            0
-                        )
-                    )
-                )
-            except:
-                pass
-
+            # Failed calls remain in quality metrics, but cannot make latency look faster.
+            if status == 'ok':
+                try:
+                    duration = float(row['time_sec'])
+                    if math.isfinite(duration) and duration >= 0:
+                        times.append(duration)
+                except (ValueError, TypeError):
+                    pass
 
             total_samples += 1
 
+
+    if not total_samples or not total_reference_chars:
+        raise ValueError(f"{csv_path}: no samples or reference characters to evaluate")
 
     # Corpus-level CER
     if total_reference_chars > 0:
@@ -218,38 +227,35 @@ def evaluate(csv_path):
 # RUN
 # =========================================================
 
-print()
-print("=" * 74)
+def main():
+    parser = argparse.ArgumentParser(description='Evaluate OCR CSV files on the same sample.')
+    parser.add_argument('csv_files', nargs='*', type=Path, help='Defaults to all three baseline result CSVs.')
+    parser.add_argument('--output', type=Path, help='Save metrics to a CSV report.')
+    args = parser.parse_args()
+    files = [(p.stem, p) for p in args.csv_files] if args.csv_files else list(FILES.items())
+    try:
+        references = None
+        reports = []
+        for name, path in files:
+            report = evaluate(path)
+            with open(path, encoding='utf-8-sig', newline='') as stream:
+                current = {r['file']: normalize(r['ground_truth']) for r in csv.DictReader(stream)}
+            if references is not None and current != references:
+                raise ValueError('Result files contain different samples or ground truth; compare the same sample.')
+            references = current
+            reports.append({'model': name, **report})
+        print(f"{'MODEL':24} {'SAMPLES':>8} {'CER':>10} {'EXACT':>10} {'EMPTY':>7} {'FAILED':>7} {'TIME':>10}")
+        for r in reports:
+            print(f"{r['model']:24} {r['samples']:8} {r['CER']:10.4f} {r['Exact Match']:10.2%} {r['empty']:7} {r['failed']:7} {r['avg_time']:9.4f}s")
+        if args.output:
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            with args.output.open('w', encoding='utf-8-sig', newline='') as stream:
+                writer = csv.DictWriter(stream, fieldnames=list(reports[0]))
+                writer.writeheader()
+                writer.writerows(reports)
+    except (OSError, ValueError) as exc:
+        parser.exit(1, f'{exc}\n')
 
-print(
-    f"{'MODEL':15}"
-    f"{'SAMPLES':>10}"
-    f"{'CER':>12}"
-    f"{'EXACT':>12}"
-    f"{'EMPTY':>10}"
-    f"{'TIME':>12}"
-)
 
-print("=" * 74)
-
-
-for model_name, csv_path in FILES.items():
-
-    result = evaluate(csv_path)
-
-    print(
-        f"{model_name:15}"
-        f"{result['samples']:>10}"
-        f"{result['CER']:>12.4f}"
-        f"{result['Exact Match'] * 100:>11.2f}%"
-        f"{result['empty']:>10}"
-        f"{result['avg_time']:>11.4f}s"
-    )
-
-
-print("=" * 74)
-
-print()
-print("CER: lower is better")
-print("Exact Match: higher is better")
-print()
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,6 @@
+# Python 3.12; baseline crop OCR. Tesseract executable and jpn data install separately.
+-r manga_app/requirements.txt
+manga-ocr==0.1.16
+pytesseract==0.3.13
+torch==2.15.0
+transformers==5.23.0

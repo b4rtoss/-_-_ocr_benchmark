@@ -1,3 +1,4 @@
+from benchmark_paths import BASE_DIR
 import json
 import time
 import gc
@@ -20,9 +21,7 @@ from qwen_vl_utils import process_vision_info
 # PATHS
 # ============================================================
 
-BASE = Path(
-    r"C:\mangalmm_test\official_mangaocr_test50"
-)
+BASE = BASE_DIR / 'official_mangaocr_test50'
 
 MANIFEST = BASE / "manifest.jsonl"
 

@@ -1,3 +1,4 @@
+from benchmark_paths import BASE_DIR
 import csv
 import json
 import re
@@ -9,9 +10,7 @@ from pathlib import Path
 # PATHS
 # ============================================================
 
-BASE = Path(
-    r"C:\mangalmm_test\official_mangaocr_test50"
-)
+BASE = BASE_DIR / 'official_mangaocr_test50'
 
 MANIFEST = BASE / "manifest.jsonl"
 

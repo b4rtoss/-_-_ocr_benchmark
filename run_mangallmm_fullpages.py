@@ -1,3 +1,4 @@
+from benchmark_paths import BASE_DIR, IMAGE_DIR, XML_PATH
 import os
 import re
 import gc
@@ -22,20 +23,10 @@ from transformers import (
 # ПУТИ
 # =========================================================
 
-# Так не нужно вручную писать C:\Users\Соня
-ROOT = (
-    Path.home()
-    / "Desktop"
-    / "Новая папка"
-    / "Manga109S_released_2026_05_21"
-)
+# IMAGE_DIR is supplied by benchmark_paths.
+# XML_PATH is supplied by benchmark_paths.
 
-IMAGE_DIR = ROOT / "images" / "Hamlet"
-XML_PATH = ROOT / "annotations" / "Hamlet.xml"
-
-OUTPUT_DIR = Path(
-    r"C:\mangalmm_test\mangallmm_pages_test"
-)
+OUTPUT_DIR = BASE_DIR / 'mangallmm_pages_test'
 
 OUTPUT_DIR.mkdir(
     parents=True,
