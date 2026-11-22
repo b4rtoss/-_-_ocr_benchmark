@@ -6,6 +6,14 @@ The page list is on the left, the image preview is in the center, and OCR text a
 
 [Quick start](#quick-start) · [Architecture](#current-architecture) · [Image processing](#from-image-loading-to-ocr-results) · [Known limitations](#limitations-and-known-issues) · [OCR research](#research)
 
+## Demo
+
+I demonstrate full-page OCR in the English interface: processing a Japanese manga page, displaying detected text regions, and reviewing recognized text with confidence scores.
+
+[![Manga Reader OCR demo](docs/media/manga-reader-demo.jpg)](https://github.com/b4rtoss/manga-reader/blob/main/docs/media/manga-reader-demo.mp4)
+
+[Watch or download the demo (MP4, 14 seconds)](https://github.com/b4rtoss/manga-reader/raw/refs/heads/main/docs/media/manga-reader-demo.mp4).
+
 ## Application features
 
 - Add individual images or a chapter folder, with natural page-number sorting.
