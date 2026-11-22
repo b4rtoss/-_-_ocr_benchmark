@@ -10,9 +10,7 @@ The page list is on the left, the image preview is in the center, and OCR text a
 
 I demonstrate full-page OCR in the English interface: processing a Japanese manga page, displaying detected text regions, and reviewing recognized text with confidence scores.
 
-[![Manga Reader OCR demo](docs/media/manga-reader-demo.jpg)](https://github.com/b4rtoss/manga-reader/blob/main/docs/media/manga-reader-demo.mp4)
-
-[Watch or download the demo (MP4, 14 seconds)](https://github.com/b4rtoss/manga-reader/raw/refs/heads/main/docs/media/manga-reader-demo.mp4).
+![Manga Reader OCR demo](docs/media/manga-reader-demo.gif)
 
 ## Application features
 
