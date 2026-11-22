@@ -41,6 +41,7 @@ The application is under development. OCR and generated analysis can contain err
 
 ## Documentation
 
+- [Repository structure and research tools](docs/repository-structure.md)
 - [Architecture, image processing, and planned improvements](docs/application.md)
 - [Limitations and known issues](docs/limitations.md)
 - [OCR comparison: models, methodology, and results](docs/experiment-results.md)

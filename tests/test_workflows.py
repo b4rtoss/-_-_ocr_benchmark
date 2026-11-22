@@ -10,8 +10,8 @@ import unittest
 from unittest.mock import patch
 
 from PIL import Image
-from batch_runner import FIELDS, read_ground_truth, run_batch
-from evaluate_results import evaluate
+from research.batch_runner import FIELDS, read_ground_truth, run_batch
+from research.evaluate_results import evaluate
 from manga_app.engine import Analyzer, load_image, natural_key
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,9 +19,19 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class Workflows(unittest.TestCase):
     def test_all_scripts_parse_without_optional_model_dependencies(self):
-        for path in [*ROOT.glob('*.py'), *(ROOT / 'manga_app').glob('*.py')]:
+        for path in [*(ROOT / 'research').glob('*.py'), *(ROOT / 'manga_app').glob('*.py')]:
             with self.subTest(path=path.name):
                 ast.parse(path.read_text(encoding='utf-8'), filename=str(path))
+
+    def test_research_default_data_path_survives_package_move(self):
+        env = {**os.environ, 'PYTHONPATH': str(ROOT), 'PYTHONIOENCODING': 'utf-8'}
+        env.pop('OCR_BENCHMARK_DIR', None)
+        env.pop('MANGA109_ROOT', None)
+        result = subprocess.run([sys.executable, '-c',
+            'from research.benchmark_paths import BASE_DIR, IMAGE_DIR; '
+            'import json; print(json.dumps([str(BASE_DIR), str(IMAGE_DIR)]))'],
+            cwd=self.base, env=env, capture_output=True, encoding='utf-8', check=True)
+        self.assertEqual(json.loads(result.stdout), [str(ROOT), str(ROOT / 'Hamlet')])
 
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -37,10 +47,11 @@ class Workflows(unittest.TestCase):
         return path
 
     def script(self, name, *args, ok=True):
-        result = subprocess.run([sys.executable, str(ROOT / name), *map(str, args)],
+        result = subprocess.run([sys.executable, '-m', 'research.' + Path(name).stem, *map(str, args)],
                                 cwd=self.base, capture_output=True, encoding='utf-8',
                                 env={**os.environ, 'OCR_BENCHMARK_DIR': str(self.base),
-                                     'PYTHONIOENCODING': 'utf-8', 'MANGA109_ROOT': ''})
+                                     'PYTHONIOENCODING': 'utf-8', 'MANGA109_ROOT': '',
+                                     'PYTHONPATH': os.pathsep.join(filter(None, [str(ROOT), os.environ.get('PYTHONPATH', '')]))})
         self.assertEqual(result.returncode == 0, ok, result.stdout + result.stderr)
         return result
 

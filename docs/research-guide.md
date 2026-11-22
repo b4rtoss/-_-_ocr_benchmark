@@ -67,7 +67,7 @@ Formulas, sample selection, empty-answer handling, matching, and timing boundari
 | Empty predictions | Number of empty recognized strings |
 | Average inference time | Average recorded call duration; model loading is measured separately from individual recognition calls |
 
-I compare systems on the same sample with the same normalization. Timing depends on hardware and the runner. Failed baseline calls remain in CER and Exact Match, but `evaluate_results.py` averages latency only across successful calls. Models are initialized before calls are timed.
+I compare systems on the same sample with the same normalization. Timing depends on hardware and the runner. Failed baseline calls remain in CER and Exact Match, but `research/evaluate_results.py` averages latency only across successful calls. Models are initialized before calls are timed.
 
 ### Research results
 
@@ -90,17 +90,19 @@ MangaLMM is evaluated separately on full pages. After coordinate scaling was cor
 
 | File | Purpose |
 | --- | --- |
-| [prepare_dataset.py](../prepare_dataset.py) | Generate crops and `ground_truth.csv` from `Hamlet/Hamlet.xml` |
-| [run_mangaocr_batch.py](../run_mangaocr_batch.py) | Batch Manga OCR with per-example results |
-| [run_tesseract_batch.py](../run_tesseract_batch.py) | Batch Tesseract OCR |
-| [run_paddle_batch.py](../run_paddle_batch.py) | Batch PaddleOCR |
-| [evaluate_results.py](../evaluate_results.py) | Baseline CER, Exact Match, and timing evaluation |
-| [prepare_chatgpt_50.py](../prepare_chatgpt_50.py) | Prepare a sample for the ChatGPT comparison |
-| [compare_ocr_test50.py](../compare_ocr_test50.py) | Compare four systems on the same sample |
-| [run_mangallmm_fullpages.py](../run_mangallmm_fullpages.py) | MangaLMM full-page inference |
-| [run_mangallmm_tiled.py](../run_mangallmm_tiled.py) | MangaLMM tiled inference |
+| [prepare_dataset.py](../research/prepare_dataset.py) | Generate crops and `ground_truth.csv` from `Hamlet/Hamlet.xml` |
+| [run_mangaocr_batch.py](../research/run_mangaocr_batch.py) | Batch Manga OCR with per-example results |
+| [run_tesseract_batch.py](../research/run_tesseract_batch.py) | Batch Tesseract OCR |
+| [run_paddle_batch.py](../research/run_paddle_batch.py) | Batch PaddleOCR |
+| [evaluate_results.py](../research/evaluate_results.py) | Baseline CER, Exact Match, and timing evaluation |
+| [prepare_chatgpt_50.py](../research/prepare_chatgpt_50.py) | Prepare a sample for the ChatGPT comparison |
+| [compare_ocr_test50.py](../research/compare_ocr_test50.py) | Compare four systems on the same sample |
+| [run_mangallmm_fullpages.py](../research/run_mangallmm_fullpages.py) | MangaLMM full-page inference |
+| [run_mangallmm_tiled.py](../research/run_mangallmm_tiled.py) | MangaLMM tiled inference |
 
 ### Run a baseline experiment
+
+Research code lives in [`research/`](../research/). Run all commands below from the repository root using `python -m research.<module>`.
 
 The following starts with Manga OCR; the other engines require their own setup.
 
@@ -110,27 +112,27 @@ The following starts with Manga OCR; the other engines require their own setup.
    ```powershell
    python -m venv .venv
    .\.venv\Scripts\Activate.ps1
-   python -m pip install -r requirements-benchmark.txt
+   python -m pip install -r research/requirements.txt
    ```
 
 3. Ensure that the images and `Hamlet.xml` are in `Hamlet`. Follow the rightsholders' terms when using the source data.
-4. Run `python prepare_dataset.py`.
+4. Run `python -m research.prepare_dataset`.
 5. By default, data and results use the repository directory. Set `OCR_BENCHMARK_DIR` or pass `--dataset-dir`, `--ground-truth`, and `--output` to use another location.
-6. Run `python run_mangaocr_batch.py`.
+6. Run `python -m research.run_mangaocr_batch`.
 
 Results contain `file`, `ground_truth`, `prediction`, `time_sec`, and `status`. The first run may need model downloads. Add `--limit 3` for a smoke test or `--resume` to continue. Resume keeps existing rows, including errors; without it, the results file is recreated. Failed samples produce a nonzero exit code and retain details in `status`.
 
 ```powershell
-python run_paddle_batch.py --limit 3
-python run_tesseract_batch.py --limit 3 --tesseract-cmd "C:\Program Files\Tesseract-OCR\tesseract.exe"
-python evaluate_results.py results_mangaocr.csv --output report.csv
-python prepare_chatgpt_50.py --size 50 --seed 42
+python -m research.run_paddle_batch --limit 3
+python -m research.run_tesseract_batch --limit 3 --tesseract-cmd "C:\Program Files\Tesseract-OCR\tesseract.exe"
+python -m research.evaluate_results results_mangaocr.csv --output report.csv
+python -m research.prepare_chatgpt_50 --size 50 --seed 42
 python -m unittest discover -s tests -v
 ```
 
 Install the Tesseract executable and `jpn` language data separately. The runner uses PATH unless `--tesseract-cmd` is provided. PaddleOCR defaults to CPU; `--device gpu:0` requires a compatible PaddlePaddle GPU/CUDA/cuDNN installation.
 
-`evaluate_results.py` accepts one or more CSV files. Without arguments, it expects all three baseline files. With multiple files, it verifies that examples and normalized references match. Empty CSV files and duplicate sample filenames are errors.
+`research/evaluate_results.py` accepts one or more CSV files. Without arguments, it expects all three baseline files. With multiple files, it verifies that examples and normalized references match. Empty CSV files and duplicate sample filenames are errors.
 
 MangaLMM scripts also use the repository's Hamlet pages by default. For a complete external Manga109 dataset, set `MANGA109_ROOT` to a directory containing `images/` and `annotations/`. Preparing the official sample across multiple books requires that complete dataset. MangaLMM needs a separate environment with CUDA, PyTorch, Transformers, Accelerate, bitsandbytes, qwen-vl-utils, and datasets; these are separate from the standard application installation.
 

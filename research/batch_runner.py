@@ -5,7 +5,7 @@ import time
 from pathlib import Path
 
 from PIL import Image
-from benchmark_paths import BASE_DIR
+from .benchmark_paths import BASE_DIR
 
 FIELDS = ['file', 'ground_truth', 'prediction', 'time_sec', 'status']
 

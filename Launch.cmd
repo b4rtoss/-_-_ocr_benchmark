@@ -5,5 +5,5 @@ if not exist ".venv\Scripts\python.exe" (
   pause
   exit /b 1
 )
-".venv\Scripts\python.exe" manga_app\app.py
+".venv\Scripts\python.exe" -m manga_app.app
 if errorlevel 1 pause

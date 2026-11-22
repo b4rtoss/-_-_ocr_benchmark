@@ -1,4 +1,4 @@
-from benchmark_paths import BASE_DIR, IMAGE_DIR, XML_PATH
+from .benchmark_paths import BASE_DIR, IMAGE_DIR, XML_PATH
 import os
 import re
 import gc

@@ -2,7 +2,7 @@
 import csv
 import xml.etree.ElementTree as ET
 from PIL import Image
-from benchmark_paths import BASE_DIR, IMAGE_DIR, XML_PATH
+from .benchmark_paths import BASE_DIR, IMAGE_DIR, XML_PATH
 
 PADDING = 5
 FIELDS = ['file', 'text', 'page', 'xmin', 'ymin', 'xmax', 'ymax', 'text_id']

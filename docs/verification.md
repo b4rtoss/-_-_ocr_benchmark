@@ -4,7 +4,7 @@ I use Codex to help check the project on Windows 10 Home x64, build 19045, with 
 
 ## Fixes
 
-- Removed absolute paths from the previous working environment. Shared paths are defined in `benchmark_paths.py`, with `OCR_BENCHMARK_DIR` and `MANGA109_ROOT` overrides.
+- Removed absolute paths from the previous working environment. Shared paths are defined in `research/benchmark_paths.py`, with `OCR_BENCHMARK_DIR` and `MANGA109_ROOT` overrides.
 - The ChatGPT sample preparation accepts the dataset's `text` column and the compatible `ground_truth` column. Sample size and seed are command-line options.
 - The three baseline runners share a CSV format and command-line interface. PaddleOCR defaults to CPU. Models are initialized before individual calls are timed. Missing images and recognition failures remain in the results; resume validates references and prevents duplicate rows.
 - Evaluation reports failures, excludes failed calls from average latency, rejects empty or duplicate samples, and checks that compared CSV files contain the same examples and reference text.
@@ -44,6 +44,12 @@ Three samples are insufficient to assess model quality. Timing includes the sele
 The suite now passes 24 tests, including ten session checks. I verify round-trip restoration of page order, selection, OCR polygons, confidence, Japanese text, analysis, warnings, error records, pending pages, and settings without calling OCR. I also check relative paths after moving images with a session, missing images, invalid formats and versions, and failed atomic writes preserving the previous file.
 
 Tkinter checks cover saving and reopening, canceled saves preventing workspace clearing, invalid files leaving current results intact, and saving partial results while processing. New results after a partial save mark the session as changed again. Saving is manual; these checks do not establish automatic crash recovery.
+
+## Repository reorganization checks
+
+The application remains in `manga_app/`. I moved all 16 research scripts and helpers into `research/`, updated package imports and module commands, and moved baseline dependencies to `research/requirements.txt`. The full suite passes 25 tests after this move, including the existing session checks and a regression check that default data paths still point to the repository's root and `Hamlet/` directory. Subprocess tests run research modules against temporary external datasets. Windows and Linux CI run the suite; Linux uses a virtual display for Tkinter.
+
+The move does not rerun the full benchmark or MangaLMM inference. Historical scores remain unchanged.
 
 ## Verification limits
 

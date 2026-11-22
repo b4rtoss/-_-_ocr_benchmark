@@ -1,4 +1,4 @@
-from benchmark_paths import BASE_DIR, MANGA109_ROOT
+from .benchmark_paths import BASE_DIR, MANGA109_ROOT
 import json
 import random
 import shutil

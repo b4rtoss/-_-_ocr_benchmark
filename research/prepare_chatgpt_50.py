@@ -3,8 +3,8 @@ import argparse
 import csv
 import random
 import shutil
-from benchmark_paths import BASE_DIR
-from batch_runner import read_ground_truth
+from .benchmark_paths import BASE_DIR
+from .batch_runner import read_ground_truth
 
 
 def main():

@@ -1,4 +1,4 @@
-from benchmark_paths import BASE_DIR, IMAGE_DIR
+from .benchmark_paths import BASE_DIR, IMAGE_DIR
 import re
 import gc
 import json

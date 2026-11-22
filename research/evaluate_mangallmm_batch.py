@@ -1,4 +1,4 @@
-from benchmark_paths import BASE_DIR, XML_PATH
+from .benchmark_paths import BASE_DIR, XML_PATH
 import csv
 import json
 import re

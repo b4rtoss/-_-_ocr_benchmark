@@ -1,4 +1,4 @@
-from benchmark_paths import BASE_DIR
+from .benchmark_paths import BASE_DIR
 import argparse
 import math
 from pathlib import Path
