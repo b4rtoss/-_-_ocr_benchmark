@@ -9,8 +9,10 @@ from pathlib import Path
 from PIL import ImageTk, ImageDraw
 if __package__:
     from .engine import Analyzer, EXTENSIONS, natural_key, load_image, request_json
+    from .session import load_session, save_session
 else:
     from engine import Analyzer, EXTENSIONS, natural_key, load_image, request_json
+    from session import load_session, save_session
 
 class App(tk.Tk):
     def __init__(self):
@@ -31,6 +33,8 @@ class App(tk.Tk):
         self.files, self.records = [], {}
         self.events, self.cancel = queue.Queue(), threading.Event()
         self.busy = False
+        self.modified = False
+        self.session_path = None
         self.analyzer = Analyzer()
         self.mode = tk.BooleanVar(value=True)
         self.lang = tk.StringVar(value='Japanese')
@@ -51,11 +55,18 @@ class App(tk.Tk):
             self.controls.append(button)
         for index, (title, command) in enumerate([
                 ('Guide', lambda: os.startfile(str(Path(__file__).resolve().parent.parent / 'START.md'))),
-                ('Settings', self.open_settings), ('Save', self.save)]):
+                ('Settings', self.open_settings), ('Export', self.save)]):
             holder, _ = self.header_button(right, title, command)
             holder.pack(side='left', padx=(0, 8 if index < 2 else 0))
         second_row = ttk.Frame(header)
         second_row.pack(fill='x', pady=(16, 0))
+        session_actions = ttk.Frame(second_row)
+        session_actions.pack(side='right')
+        for title, command in [('Open session', self.open_session), ('Save session', self.save_session)]:
+            holder, button = self.header_button(session_actions, title, command)
+            holder.pack(side='left', padx=(8, 0))
+            if title == 'Open session':
+                self.controls.append(button)
         ttk.Label(second_row, text='Source language').pack(side='left', padx=(0, 8))
         self.language_select = ttk.Combobox(second_row, textvariable=self.lang,
             values=['Japanese', 'English', 'Russian'], state='readonly', width=14)
@@ -84,6 +95,86 @@ class App(tk.Tk):
         self.progress = ttk.Progressbar(self)
         self.progress.pack(fill='x', padx=16, pady=(0, 16))
         self.after(150, self.poll)
+        for variable in (self.lang, self.mode, self.model):
+            variable.trace_add('write', self.mark_modified)
+        self.protocol('WM_DELETE_WINDOW', self.close)
+
+    def mark_modified(self, *args):
+        self.modified = True
+
+    def confirm_replace(self):
+        if not self.modified:
+            return True
+        answer = messagebox.askyesnocancel('Unsaved session', 'Save the current session before continuing?', parent=self)
+        if answer is None:
+            return False
+        return self.save_session(choose_path=False) if answer else True
+
+    def close(self):
+        if self.busy:
+            messagebox.showinfo('Processing', 'Stop processing and wait for the current page before closing. You can save a partial session now.', parent=self)
+            return
+        if self.confirm_replace():
+            self.destroy()
+
+    def save_session(self, choose_path=True):
+        path = self.session_path if not choose_path else None
+        if not path:
+            path = filedialog.asksaveasfilename(parent=self, title='Save session',
+                defaultextension='.manga-session.json',
+                filetypes=[('Manga Reader session', '*.manga-session.json')])
+        if not path:
+            return False
+        try:
+            selected = self.pages.curselection()
+            save_session(path, self.files, self.records, self.lang.get(), self.mode.get(),
+                         self.model.get(), selected[0] if selected else None)
+        except Exception as exc:
+            messagebox.showerror('Could not save session', str(exc), parent=self)
+            return False
+        self.session_path = str(Path(path).resolve())
+        self.modified = False
+        if not self.busy:
+            self.status.set('Session saved. Images remain in their original locations.')
+        return True
+
+    def open_session(self):
+        if self.busy:
+            return
+        path = filedialog.askopenfilename(parent=self, title='Open session',
+            filetypes=[('Manga Reader session', '*.manga-session.json'), ('JSON', '*.json')])
+        if not path:
+            return
+        try:
+            session = load_session(path)
+        except Exception as exc:
+            messagebox.showerror('Could not open session', str(exc), parent=self)
+            return
+        if not self.confirm_replace():
+            return
+        self.files, self.records = session['files'], session['records']
+        self.lang.set(session['language'])
+        self.mode.set(session['story'])
+        self.model.set(session['model'])
+        self.pages.delete(0, 'end')
+        self.canvas.delete('all')
+        self.text.delete('1.0', 'end')
+        for file in self.files:
+            self.pages.insert('end', Path(file).name)
+        if self.files:
+            selected = session['selected'] if session['selected'] is not None else 0
+            self.pages.selection_set(selected)
+            self.pages.see(selected)
+            self.show()
+        self.progress.configure(maximum=max(1, len(self.files)), value=len(self.records))
+        self.session_path = str(Path(path).resolve())
+        self.modified = False
+        missing = sum(not Path(file).is_file() for file in self.files)
+        self.status.set(f'Session restored: {len(self.files)} pages, {len(self.records)} saved results.')
+        if missing:
+            messagebox.showwarning('Missing images',
+                f'{missing} image file(s) could not be found. Saved text is still available. '
+                'Restore the images to their original paths, or move them together with the session folder.', parent=self)
 
     def header_button(self, parent, text, command, primary=False):
         background = '#705CF0' if primary else 'white'
@@ -125,8 +216,11 @@ class App(tk.Tk):
         model_entry.focus_set()
 
     def add(self, paths):
+        previous = list(self.files)
         self.files = sorted(set(self.files + [str(Path(p).resolve()) for p in paths
                             if Path(p).suffix.lower() in EXTENSIONS]), key=natural_key)
+        if previous != self.files:
+            self.mark_modified()
         self.pages.delete(0, 'end')
         for p in self.files:
             self.pages.insert('end', Path(p).name)
@@ -143,7 +237,7 @@ class App(tk.Tk):
             self.add([p for p in Path(folder).iterdir() if p.is_file()])
 
     def clear(self):
-        if self.busy:
+        if self.busy or not self.confirm_replace():
             return
         self.files.clear()
         self.records.clear()
@@ -152,6 +246,8 @@ class App(tk.Tk):
         self.text.delete('1.0', 'end')
         self.progress.configure(value=0)
         self.status.set('Select pages for a new chapter.')
+        self.session_path = None
+        self.modified = False
 
     def show(self, event=None):
         selected = self.pages.curselection()
@@ -236,6 +332,7 @@ class App(tk.Tk):
                 elif kind == 'result':
                     path, record, count = value
                     self.records[path] = record
+                    self.mark_modified()
                     self.progress.configure(value=count)
                     self.show()
                 elif kind == 'failure':

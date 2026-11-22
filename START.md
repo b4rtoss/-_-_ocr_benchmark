@@ -14,7 +14,7 @@ Manga Reader is a local desktop application for manga page images. It detects te
 
 4. Open `Launch.cmd`. Add individual images with **Add pages** or choose a chapter folder with **Open folder**.
 5. Select the source language and click **Analyze**.
-6. Select a page on the left to view its image, OCR regions, and results. Click **Save** to export JSON with coordinates or a plain text file.
+6. Select a page on the left to view its image, OCR regions, and results. Click **Export** for JSON with coordinates or a plain text file. Use **Save session** to continue later.
 
 The interface, status messages, and generated analysis are in English. OCR preserves text in its original language. The default Ollama model is the `instruct` variant; you can change it in **Settings**. Model downloads require an internet connection and sufficient disk space and memory.
 
@@ -34,7 +34,11 @@ When story analysis is enabled, each page receives a shortened context from earl
 
 The window remains responsive while pages are processed sequentially in a background thread. **Stop** ends the queue after the current page. It does not interrupt an OCR call or Ollama request already in progress; analysis requests use a 900-second HTTP timeout.
 
-Results stay in memory until you export them. There is no session recovery or automatic saving. A new analysis run processes the added pages again.
+**Save session** writes a `.manga-session.json` file containing the ordered page list, completed OCR and analysis results (including warnings and errors), selected page, source language, Ollama setting, and model name. **Open session** restores these without running OCR or contacting Ollama. JSON/TXT exports are separate and cannot be opened as sessions.
+
+Images are not embedded. Keep them in place, or move the session and its image folders together while preserving their relative layout. Images on another drive use absolute paths. If an image is missing, its saved text remains available, but the preview and reanalysis need the original file.
+
+Saving is manual. You can save partial results while processing; subsequent pages require another save. Before closing, clearing, or opening another session, the application offers to save unsaved changes. A canceled or failed save keeps the current session open. A failed write preserves the previous session file. There is no automatic crash recovery, and **Analyze** processes all added pages again rather than resuming only unfinished pages. Stop processing and wait for the current page before closing the application.
 
 If an Ollama analysis request fails after successful OCR, the recognized text remains available with a warning. If OCR fails in story mode, the application can try image analysis directly and records the OCR failure as a warning. Missing Ollama or a missing model is reported during the initial check. A model response that reaches its length limit is marked with a warning.
 

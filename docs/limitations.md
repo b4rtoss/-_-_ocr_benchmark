@@ -20,7 +20,7 @@
 ### Current application limits
 
 - **Stop** ends the queue after the current page and does not interrupt an active OCR call or Ollama request. Analysis requests use a 900-second HTTP timeout.
-- Results stay in memory until manual export. Autosave and session recovery are not implemented. Running analysis again processes all added pages again.
+- Sessions can be saved and reopened manually, but autosave and automatic crash recovery are not implemented. Images are referenced rather than embedded. Running analysis again processes all added pages again, including pages with saved results.
 - Image files are supported. PDF/CBZ import, automatic source-text removal, and translated-page typesetting are not implemented.
 
 ### Experiment reproducibility

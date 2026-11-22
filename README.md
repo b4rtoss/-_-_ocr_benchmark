@@ -12,6 +12,7 @@ I am developing a local desktop application for manga OCR, dialogue translation,
 - Recognize Japanese, English, or Russian text and display detected regions with confidence scores.
 - Translate dialogue and analyze scenes with a local Ollama model, or use OCR alone.
 - Export recognized text, coordinates, and analysis as JSON or TXT.
+- Save and reopen sessions with page lists, results, and settings.
 
 ## Quick start
 
@@ -20,7 +21,7 @@ I am developing a local desktop application for manga OCR, dialogue translation,
 1. Download or clone this repository and open its folder.
 2. Run `Install.cmd`, then `Launch.cmd`.
 3. For OCR only, open **Settings** and clear **Scenes, characters and story (Ollama)**.
-4. Add pages, select the source language, and click **Analyze**. Use **Save** to export results.
+4. Add pages, select the source language, and click **Analyze**. Use **Export** for JSON/TXT, or **Save session** to continue later.
 
 For translation and scene analysis, install and start [Ollama](https://ollama.com/download/windows), then download the default model:
 
@@ -36,7 +37,7 @@ Supported images: JPG, JPEG, PNG, WebP, BMP, and TIFF. OCR models download on th
 
 **Python · Tkinter · Pillow · PaddleOCR (PP-OCRv5, CPU) · Ollama (`qwen3-vl:4b-instruct`)**
 
-The application is under development. OCR and generated analysis can contain errors, and CPU processing can be slow. Results stay in memory until export. I plan to evaluate Manga OCR for recognition alongside PaddleOCR detection.
+The application is under development. OCR and generated analysis can contain errors, and CPU processing can be slow. Save a session to keep your work between launches. I plan to evaluate Manga OCR for recognition alongside PaddleOCR detection.
 
 ## Documentation
 

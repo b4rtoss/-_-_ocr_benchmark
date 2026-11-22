@@ -39,6 +39,12 @@ Three samples are insufficient to assess model quality. Timing includes the sele
 - Sent a real image-analysis request to local Ollama with the updated English prompt. I reused previously verified OCR regions from the same crop, so this checks English generation without claiming a new PaddleOCR benchmark. The model returned English analysis and dialogue translations without warnings; accuracy still requires review.
 - `pip check` passed. Research-script changes outside the application are English comment translations only.
 
+## Session persistence checks
+
+The suite now passes 24 tests, including ten session checks. I verify round-trip restoration of page order, selection, OCR polygons, confidence, Japanese text, analysis, warnings, error records, pending pages, and settings without calling OCR. I also check relative paths after moving images with a session, missing images, invalid formats and versions, and failed atomic writes preserving the previous file.
+
+Tkinter checks cover saving and reopening, canceled saves preventing workspace clearing, invalid files leaving current results intact, and saving partial results while processing. New results after a partial save mark the session as changed again. Saving is manual; these checks do not establish automatic crash recovery.
+
 ## Verification limits
 
 For maintenance checks, I use automated tests and short smoke runs. The full benchmark, quantized MangaLMM inference, complete PaddleOCR page processing, and separate English/Russian OCR models have not been rerun as part of that original check. MangaLMM scripts were checked for syntax and path consistency. Earlier experiments on 3116 crops, a 50-crop comparison, and 50 MangaLMM pages are documented in the [research report](experiment-results.md).
@@ -47,7 +53,7 @@ A separate GPU environment produced `WinError 127` when loading cuDNN. That envi
 
 ## Run the checks
 
-The current suite includes the original workflow checks and an English-output request regression test. It does not require OCR model downloads:
+The current suite includes workflow, English-output request, session storage, and Tkinter session checks. It requires Tkinter and Pillow but does not require OCR model downloads:
 
 ```powershell
 python -m unittest discover -s tests -v

@@ -36,3 +36,5 @@ mangallmm_summary.txt
 .smoke/
 smoke-*.jpg
 smoke-*.csv
+# Local application sessions may contain private paths and recognized text.
+*.manga-session.json
