@@ -71,7 +71,7 @@ def load_jsonl(path):
 # ============================================================
 # TEXT NORMALIZATION
 #
-# Повторяем нормализацию из официального eval_OCR.ipynb
+# Follow normalization in the official eval_OCR.ipynb.
 # ============================================================
 
 def normalize_repeated_symbols(text):
@@ -224,7 +224,7 @@ def edit_distance(a, b):
 # ============================================================
 # NORMALIZED EDIT SIMILARITY
 #
-# Официальный evaluator:
+# Official evaluator:
 #
 # 1 - edit_distance / max(len(pred), len(gt))
 #
@@ -289,8 +289,8 @@ def parse_raw_pairs(raw_text):
 
     text = str(raw_text)
 
-    # официальный inference отдельно
-    # обрабатывает escaped quotes
+    # The official inference script separately
+    # handles escaped quotes.
     text = text.replace(
         '\\"',
         '"'
@@ -363,9 +363,9 @@ def valid_bbox(bbox):
 # ============================================================
 # IOU
 #
-# bbox_2d в официальном inference
-# преобразуется в прямоугольный quad.
-# Для таких прямоугольников обычный bbox IoU эквивалентен.
+# Official inference converts bbox_2d
+# to a rectangular quadrilateral.
+# Standard bounding-box IoU is equivalent for these rectangles.
 # ============================================================
 
 def bbox_iou(a, b):
@@ -499,7 +499,7 @@ def get_pred_items(
     items = []
 
 
-    # Сначала используем уже распарсенные detections
+    # Use previously parsed detections first.
     detections = result_row.get(
         "detections",
         []
@@ -537,8 +537,8 @@ def get_pred_items(
                 })
 
 
-    # Если parser во время inference ничего не нашёл,
-    # пробуем ещё раз прямо по raw output.
+    # If the inference parser found nothing,
+    # retry directly on the raw output.
     if not items:
 
         raw = result_row.get(
@@ -574,9 +574,9 @@ def get_pred_items(
     # ========================================================
     # OFFICIAL DEDUPLICATION
     #
-    # В официальном notebook:
-    # если одно и то же слово появляется >= 10 раз
-    # на странице, все такие повторения удаляются.
+    # In the official notebook:
+    # if the same word occurs at least 10 times
+    # on a page, remove all such repetitions.
     # ========================================================
 
     counts = Counter(
@@ -601,7 +601,7 @@ def get_pred_items(
 # ============================================================
 # MATCH ONE SAMPLE
 #
-# Повторяем логику официального evaluator:
+# Follow the official evaluator logic:
 #
 # - one-to-one spatial matching
 # - IoU > 0.5
@@ -654,8 +654,8 @@ def evaluate_sample(
             )
 
 
-            # Официальный код использует >
-            # а не >=
+            # The official code uses >
+            # rather than >=.
             if overlap > IOU_THRESHOLD:
 
                 gt_used[gi] = True

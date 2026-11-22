@@ -20,7 +20,7 @@ from transformers import (
 
 
 # =========================================================
-# ПУТИ
+# PATHS
 # =========================================================
 
 # IMAGE_DIR is supplied by benchmark_paths.
@@ -40,11 +40,11 @@ RESULT_JSONL = (
 
 
 # =========================================================
-# БЕРЁМ 5 НОРМАЛЬНЫХ СТРАНИЦ МАНГИ
+# SELECT FIVE MANGA CONTENT PAGES
 # =========================================================
 
-# Не 000-004, потому что там могут быть
-# обложки/служебные страницы.
+# Skip 000-004 because these may be
+# covers or introductory pages.
 PAGES = [8, 9, 10, 11, 12]
 
 
@@ -54,15 +54,15 @@ PAGES = [8, 9, 10, 11, 12]
 
 MODEL_ID = "hal-utokyo/MangaLMM"
 
-# Процессор берём от базовой Qwen,
-# как в нашей уже рабочей конфигурации.
+# Use the base Qwen processor
+# as in the working configuration.
 PROCESSOR_ID = (
     "Qwen/Qwen2.5-VL-7B-Instruct"
 )
 
 
 # =========================================================
-# ОФИЦИАЛЬНЫЙ OCR PROMPT
+# OFFICIAL OCR PROMPT
 # =========================================================
 
 OCR_PROMPT = (
@@ -73,7 +73,7 @@ OCR_PROMPT = (
 
 
 # =========================================================
-# ПРОВЕРКА CUDA
+# CHECK CUDA
 # =========================================================
 
 print(
@@ -127,12 +127,12 @@ processor = (
 
         PROCESSOR_ID,
 
-        # Полная страница требует больше
-        # visual tokens, чем наши кропы.
+        # A full page requires more
+        # visual tokens than the text crops.
         #
-        # Начинаем с 256.
-        # Для RTX 4050 6GB это уже
-        # довольно близко к пределу.
+        # Start at 256.
+        # For a 6 GB RTX 4050, this is already
+        # close to the available memory limit.
         min_pixels=128 * 28 * 28,
 
         max_pixels=256 * 28 * 28,
@@ -192,7 +192,7 @@ print(
 
 
 # =========================================================
-# ЧИТАЕМ HAMLET.XML
+# READ HAMLET.XML
 # =========================================================
 
 print()
@@ -259,7 +259,7 @@ def parse_mangallmm_output(text):
     if not text:
         return []
 
-    # Убираем некоторые служебные части
+    # Remove wrapper text.
     clean = (
         text
         .replace("```json", "")
@@ -268,7 +268,7 @@ def parse_mangallmm_output(text):
 
     results = []
 
-    # Ищем объекты вида:
+    # Find objects of this form:
     #
     # "bbox_2d": [x1,y1,x2,y2],
     # "text_content": "..."
@@ -341,7 +341,7 @@ def find_page_image(
 
 
 # =========================================================
-# ОЧИЩАЕМ СТАРЫЙ ТЕСТОВЫЙ JSONL
+# RECREATE THE TEST JSONL
 # =========================================================
 
 if RESULT_JSONL.exists():
@@ -516,8 +516,8 @@ for counter, page_number in enumerate(
 
                     **inputs,
 
-                    # На странице текста больше,
-                    # поэтому 128 уже мало.
+                    # A full page contains more text,
+                    # so 128 output tokens are insufficient.
                     max_new_tokens=768,
 
                     do_sample=False,

@@ -19,7 +19,7 @@ from transformers import (
 
 
 # =========================================================
-# НАСТРОЙКИ
+# SETTINGS
 # =========================================================
 
 # IMAGE_DIR is supplied by benchmark_paths.
@@ -31,7 +31,7 @@ OUTPUT_DIR.mkdir(
     exist_ok=True
 )
 
-# Пока только 20 страниц
+# Process 20 pages in this experiment.
 PAGES = list(range(8, 28))
 
 
@@ -161,7 +161,7 @@ print(
 
 
 # =========================================================
-# НАЙТИ JPG
+# FIND THE JPG
 # =========================================================
 
 def find_page_image(page_number):
@@ -383,15 +383,15 @@ def deduplicate(detections):
             )
 
 
-            # Практически одинаковая рамка
+            # Nearly identical box
             if overlap >= 0.80:
 
                 duplicate = True
                 break
 
 
-            # Одинаковый текст
-            # в пересекающейся области
+            # Identical text
+            # in an overlapping region
             if (
                 text
                 and text == existing_text
@@ -411,7 +411,7 @@ def deduplicate(detections):
 
 
 # =========================================================
-# OCR ОДНОГО TILE
+# OCR FOR ONE TILE
 # =========================================================
 
 def run_tile(
@@ -593,7 +593,7 @@ def run_tile(
 
 
 # =========================================================
-# ОСНОВНОЙ ЦИКЛ
+# MAIN LOOP
 # =========================================================
 
 print()
@@ -674,7 +674,7 @@ for page_position, page_number in enumerate(
 
 
     # =========================================
-    # ПАПКА СТРАНИЦЫ
+    # PAGE DIRECTORY
     # =========================================
 
     page_output_dir = (

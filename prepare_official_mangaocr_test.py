@@ -8,13 +8,13 @@ from datasets import load_dataset
 
 
 # =========================================================
-# НАСТРОЙКИ
+# SETTINGS
 # =========================================================
 
 SAMPLE_SIZE = 50
 RANDOM_SEED = 42
 
-# Твой уже скачанный Manga109
+# Previously downloaded Manga109 dataset
 MANGA_ROOT = MANGA109_ROOT
 
 if MANGA_ROOT is None:
@@ -53,7 +53,7 @@ print("Official test examples:", len(dataset))
 
 
 # =========================================================
-# ФУНКЦИИ
+# FUNCTIONS
 # =========================================================
 
 def get_user_prompt(messages):
@@ -124,7 +124,7 @@ def locate_local_image(example_id):
         return None
 
 
-    # Официальный код MangaLMM:
+    # Official MangaLMM code:
     # page index -> zfill(3)
     page_file = (
         f"{page_number:03d}.jpg"
@@ -148,7 +148,7 @@ def locate_local_image(example_id):
             return path
 
 
-    # На случай png/jpeg
+    # Also handle PNG/JPEG files.
     for ext in [
         ".jpeg",
         ".png",
@@ -174,7 +174,7 @@ def locate_local_image(example_id):
 
 
 # =========================================================
-# СЛУЧАЙНАЯ, НО ВОСПРОИЗВОДИМАЯ ВЫБОРКА
+# RANDOM REPRODUCIBLE SAMPLE
 # =========================================================
 
 random.seed(RANDOM_SEED)
@@ -191,8 +191,8 @@ selected = []
 missing = []
 
 
-# Идём по случайному порядку до тех пор,
-# пока не найдём 50 реально существующих локально картинок.
+# Traverse the randomized order until
+# 50 available local images have been found.
 
 for index in indices:
 
@@ -228,7 +228,7 @@ for index in indices:
 
 
 # =========================================================
-# ПРОВЕРКА
+# VALIDATION
 # =========================================================
 
 print()

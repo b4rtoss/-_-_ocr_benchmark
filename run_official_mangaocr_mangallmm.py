@@ -40,9 +40,9 @@ RESULT_FILE = (
 # ============================================================
 # PILOT
 #
-# Пока тестируем только 3 изображения.
-# Когда убедимся, что всё работает,
-# поменяем 3 на 50.
+# Process up to LIMIT images.
+# Use a smaller LIMIT for a smoke test,
+# or 50 for the full selected sample.
 # ============================================================
 
 LIMIT = 50
@@ -54,11 +54,11 @@ LIMIT = 50
 
 MODEL_ID = "hal-utokyo/MangaLMM"
 
-# MangaLMM основана на Qwen2.5-VL.
-# Processor берём из базовой Qwen2.5-VL-7B,
-# потому что локальная версия transformers
-# не может распознать image processor
-# непосредственно из MangaLMM.
+# MangaLMM is based on Qwen2.5-VL.
+# Use the base Qwen2.5-VL-7B processor
+# because the local Transformers version
+# does not resolve the image processor
+# directly from MangaLMM.
 PROCESSOR_ID = (
     "Qwen/Qwen2.5-VL-7B-Instruct"
 )
@@ -67,7 +67,7 @@ PROCESSOR_ID = (
 # ============================================================
 # IMAGE RESOLUTION
 #
-# Ограничиваем разрешение из-за RTX 4050 6 GB.
+# Limit resolution to fit the 6 GB RTX 4050.
 # ============================================================
 
 MIN_PIXELS = 128 * 28 * 28
@@ -208,7 +208,7 @@ with open(
         )
 
 
-# Только первые LIMIT
+# Only the first LIMIT examples
 records = records[:LIMIT]
 
 
@@ -222,8 +222,8 @@ print(
 # ============================================================
 # RESUME
 #
-# Если какой-то пример уже успешно записан,
-# повторно его не запускаем.
+# If a successful result has already been saved,
+# do not run that example again.
 # ============================================================
 
 already_done = set()
@@ -272,7 +272,7 @@ print(
 # ============================================================
 # OUTPUT PARSER
 #
-# MangaLMM обычно выдаёт:
+# MangaLMM typically outputs:
 #
 # [
 #   {
@@ -551,7 +551,7 @@ for index, record in enumerate(
 
 
         # ----------------------------------------------------
-        # Убираем prompt tokens
+        # Remove prompt tokens.
         # ----------------------------------------------------
 
         generated = [

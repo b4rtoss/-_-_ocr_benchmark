@@ -186,7 +186,7 @@ def evaluate_page(
                 )
 
 
-    # Сначала лучшие IoU
+    # Highest IoU first
     candidates.sort(
         reverse=True
     )

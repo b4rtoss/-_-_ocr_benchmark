@@ -27,7 +27,7 @@ FILES = {
 
 
 # =========================================================
-# НОРМАЛИЗАЦИЯ ЯПОНСКОГО ТЕКСТА
+# JAPANESE TEXT NORMALIZATION
 # =========================================================
 
 def normalize(text):
@@ -37,14 +37,14 @@ def normalize(text):
 
     text = str(text)
 
-    # Например, приводит разные Unicode-варианты
-    # символов к единому виду
+    # For example, normalize Unicode variants
+    # to a consistent representation.
     text = unicodedata.normalize(
         "NFKC",
         text
     )
 
-    # Для OCR не считаем пробелы/переносы строк ошибкой
+    # Ignore spaces and line breaks when evaluating OCR.
     text = "".join(
         text.split()
     )
@@ -93,7 +93,7 @@ def edit_distance(a, b):
 
 
 # =========================================================
-# ОЦЕНКА ОДНОЙ МОДЕЛИ
+# EVALUATE ONE MODEL
 # =========================================================
 
 def evaluate(csv_path):
@@ -142,7 +142,7 @@ def evaluate(csv_path):
                 )
             )
 
-            # Если есть колонка status
+            # Use the status column when present.
             status = row.get(
                 "status",
                 "ok"

@@ -1,296 +1,271 @@
 # Manga Reader
 
-Я разрабатываю локальное настольное приложение для распознавания текста в манге, перевода реплик и анализа страниц. Manga Reader показывает найденные текстовые области поверх изображения, сохраняет результаты OCR и при необходимости подключает локальную модель через Ollama для описания сцен и персонажей.
+I am developing a local desktop application for manga OCR, dialogue translation, and page analysis. Manga Reader displays detected text regions over the image, keeps OCR results, and can use a local model through Ollama to describe scenes and characters in English.
 
-![Окно Manga Reader с выделенными областями текста и результатом OCR](docs/images/manga-reader-ocr.png)
+The page list is on the left, the image preview is in the center, and OCR text and analysis appear on the right after processing.
 
-Слева расположен список страниц, в центре — изображение с областями OCR, справа — распознанный текст и результат анализа.
+[Quick start](#quick-start) · [Architecture](#current-architecture) · [Image processing](#from-image-loading-to-ocr-results) · [Known limitations](#limitations-and-known-issues) · [OCR research](#research)
 
-[Быстрый запуск](#быстрый-запуск) · [Архитектура](#текущая-архитектура) · [Обработка изображения](#обработка-изображения-от-загрузки-до-результата-ocr) · [Ограничения](#ограничения-и-известные-проблемы) · [Исследование OCR](#исследовательская-часть)
+## Application features
 
-## Возможности приложения
+- Add individual images or a chapter folder, with natural page-number sorting.
+- Detect and recognize text using PaddleOCR, displaying region outlines and confidence.
+- Select Japanese, English, or Russian as the source language.
+- Run OCR without Ollama.
+- Translate dialogue into English and describe scenes and characters using local Ollama with `qwen3-vl:4b-instruct`.
+- Pass a shortened context from preceding pages during sequential analysis.
+- Export JSON with coordinates or a plain text file.
 
-- Добавление отдельных изображений или папки главы с сортировкой страниц по числам в именах.
-- Поиск и распознавание текста через PaddleOCR с отображением контуров и уверенности.
-- Выбор японского, английского или русского языка оригинала.
-- Режим только OCR без Ollama.
-- Перевод реплик, описание сцен и персонажей через локальную Ollama с моделью `qwen3-vl:4b-instruct`.
-- Передача сокращённого контекста предыдущих страниц при последовательном анализе.
-- Экспорт результатов в JSON с координатами или обычный текст.
+## Quick start
 
-## Быстрый запуск
+The standard Windows installation requires Python 3.12.
 
-Для штатной установки на Windows нужен Python 3.12.
+1. Download or clone the repository and open its folder.
+2. Run `Install.cmd` to create the environment and install dependencies.
+3. If you want dialogue translation and scene analysis, install [Ollama](https://ollama.com/download/windows), start it, and download the model:
 
-1. Скачайте или клонируйте репозиторий и откройте его папку.
-2. Запустите `Install.cmd`, чтобы создать окружение и установить зависимости.
-3. Если нужен перевод и анализ сцен, установите [Ollama](https://ollama.com/download/windows), запустите её и загрузите модель:
-
-   ~~~powershell
+   ```powershell
    ollama pull qwen3-vl:4b-instruct
-   ~~~
+   ```
 
-4. Откройте `Запустить.cmd`. Для режима без Ollama в «Настройках» снимите галочку «Сцены, персонажи и сюжет».
-5. Добавьте изображения или папку главы, выберите язык оригинала и нажмите «Анализировать».
-6. Просмотрите найденные области и текст. Кнопка «Сохранить» экспортирует результат в JSON или TXT.
+4. Open `Launch.cmd`. To work without Ollama, open **Settings** and clear **Scenes, characters and story (Ollama)**.
+5. Add images or a chapter folder, select the source language, and click **Analyze**.
+6. Review the regions and text. **Save** exports the results as JSON or TXT.
 
-Поддерживаются JPG, JPEG, PNG, WebP, BMP и TIFF. При первом запуске OCR загружаются модели. PaddleOCR работает на CPU, поэтому обработка отдельных страниц может занимать значительное время.
+Supported formats are JPG, JPEG, PNG, WebP, BMP, and TIFF. OCR models are downloaded on the first run. PaddleOCR runs on the CPU, so page processing can take considerable time.
 
-Приложение находится в доработке. OCR, перевод и анализ могут содержать ошибки; уверенность OCR не является оценкой точности перевода. Текущие ограничения перечислены [ниже](#ограничения-и-известные-проблемы), подробная настройка — в [инструкции](НАЧАТЬ.md).
+The application is under development. OCR, translations, and analysis can contain errors; OCR confidence is not translation accuracy. See [known limitations](#limitations-and-known-issues) and the [setup guide](START.md).
 
-## Текущая архитектура
+## Current architecture
 
-Manga Reader я разрабатываю как локальное настольное приложение с разделением интерфейса и обработки данных. Основное приложение работает в одном процессе, а Ollama запускается отдельно и доступна через локальный HTTP API.
+I build Manga Reader as a local desktop application with separate interface and processing modules. The main application runs in one process; Ollama runs separately and is accessed through a local HTTP API.
 
-| Компонент | Ответственность |
+| Component | Responsibility |
 | --- | --- |
-| [`manga_app/app.py`](manga_app/app.py) | Интерфейс Tkinter, список страниц, предпросмотр, запуск и остановка очереди, отображение результатов и экспорт |
-| [`manga_app/engine.py`](manga_app/engine.py) | Загрузка изображений, класс `Analyzer`, вызов OCR и запросы к Ollama |
-| PaddleOCR | Поиск и распознавание текста на странице, координаты областей и оценка уверенности. В приложении используется CPU |
-| Ollama | Локальный анализ изображения, перевод реплик и описание сцен. Модель по умолчанию — `qwen3-vl:4b-instruct` |
-| `queue.Queue` | Передача статусов и результатов из фонового потока в интерфейс |
+| [`manga_app/app.py`](manga_app/app.py) | Tkinter interface, page list, preview, processing queue controls, result display, and export |
+| [`manga_app/engine.py`](manga_app/engine.py) | Image loading, the `Analyzer` class, OCR calls, and Ollama requests |
+| PaddleOCR | Page text detection and recognition, region coordinates, and confidence; the application uses CPU |
+| Ollama | Local image analysis, dialogue translation, and scene descriptions; the default model is `qwen3-vl:4b-instruct` |
+| `queue.Queue` | Status and result delivery from the worker thread to the interface |
 
 ```mermaid
 flowchart LR
-    Files["Изображения страниц"] --> UI["Интерфейс Tkinter"]
-    UI --> Worker["Фоновый поток"]
+    Files["Page images"] --> UI["Tkinter interface"]
+    UI --> Worker["Worker thread"]
     Worker --> Engine["Analyzer"]
     Engine --> OCR["PaddleOCR"]
     OCR --> Engine
-    Engine -->|"HTTP, если включён анализ"| Ollama["Локальная Ollama"]
+    Engine -->|"HTTP, when analysis is enabled"| Ollama["Local Ollama"]
     Ollama --> Engine
-    Engine --> Queue["Очередь событий"]
+    Engine --> Queue["Event queue"]
     Queue --> UI
-    UI --> Export["Экспорт JSON / TXT"]
+    UI --> Export["JSON / TXT export"]
 ```
 
-Страницы обрабатываются последовательно в фоновом потоке, чтобы длительные вызовы моделей не блокировали интерфейс. Для каждой страницы я сначала запускаю PaddleOCR. Если включён анализ сюжета, передаю в Ollama уменьшенное изображение, распознанный текст и сокращённый контекст предыдущих страниц текущего запуска. В режиме только OCR обращение к Ollama не требуется.
+Pages are processed sequentially in a background thread so long model calls do not block the interface. For each page, I first run PaddleOCR. If story analysis is enabled, I send Ollama a resized image, recognized text, and shortened context from earlier pages in the current run. OCR-only mode does not call Ollama.
 
-Результаты хранятся в памяти приложения и экспортируются в JSON или TXT. Остановка завершает очередь после текущей страницы. Если запрос анализа Ollama завершается ошибкой после успешного OCR, распознанный текст сохраняется вместе с предупреждением.
+Results remain in memory until export. Stopping ends the queue after the current page. If an Ollama analysis request fails after successful OCR, the recognized text is retained with a warning.
 
-PaddleOCR в текущей версии закрывает и детекцию, и распознавание: его координаты позволяют отображать найденные области поверх страницы. Я использую его как готовый компонент для этого сценария; среди трёх базовых OCR-систем на 3116 кропах наиболее точным оказался Manga OCR.
+PaddleOCR currently handles both detection and recognition, providing the coordinates needed to draw regions on the page. I use it as a ready-to-integrate pipeline. Among the three baseline OCR systems evaluated on 3116 crops, Manga OCR produced the most accurate transcriptions.
 
-## Обработка изображения от загрузки до результата OCR
+## From image loading to OCR results
 
-Я организую обработку страницы следующим образом:
+I organize page processing as follows:
 
-1. **Добавление изображения.** Пользователь выбирает отдельные файлы или папку. Приложение принимает JPG, JPEG, PNG, WebP, BMP и TIFF, убирает повторяющиеся пути и сортирует имена с учётом чисел: 1, 2, 10. Выбранная страница появляется в предпросмотре.
+1. **Add images.** The user selects files or a folder. The application accepts the supported image extensions, removes duplicate paths, and sorts filenames naturally: 1, 2, 10. The selected page appears in the preview.
+2. **Start processing.** **Analyze** captures the source language and analysis settings, then processes all added pages sequentially in a worker thread. If Ollama analysis is enabled, the application first checks the service and selected model.
+3. **Prepare the image.** `load_image()` opens the file with Pillow, applies its EXIF orientation, and converts it to RGB. The result record includes the path and the prepared image's width and height.
+4. **Initialize OCR.** `Analyzer.initialize_ocr()` loads PaddleOCR on the first call or a language change. The application uses PP-OCRv5 on CPU. Document orientation classification, document unwarping, and text-line orientation are disabled. Model downloads may be needed on the first run.
+5. **Detect and recognize text.** The RGB image becomes a NumPy array, its channels are reordered to BGR, and it is passed to `PaddleOCR.predict()`. PaddleOCR performs detection and recognition. The application does not separately downscale, binarize, or denoise the page before this call; PaddleOCR handles its internal preprocessing.
+6. **Build the OCR record.** The application extracts `rec_texts`, `rec_scores`, and `rec_polys`. Each region has `text`, `confidence`, and `polygon` fields. Regions are sorted into horizontal bands 100 pixels high, right to left within a band for Japanese and left to right for the other languages. This approximate order does not recover panel structure.
+7. **Display the result.** In OCR-only mode, the record is sent through `queue.Queue` to the main thread. The interface stores it in memory and updates progress. For the selected page, it lists recognized fragments with confidence percentages and draws numbered region outlines. Outlines are drawn before the image is reduced for display, so they scale with the preview.
+8. **Export.** **Save** writes JSON containing text, confidence, and coordinates, or a TXT representation. Results remain in memory until export.
 
-2. **Запуск обработки.** По кнопке «Анализировать» приложение фиксирует язык оригинала и настройки анализа, затем запускает последовательную обработку всех добавленных страниц в фоновом потоке. Если включён анализ через Ollama, сначала проверяет доступность сервиса и наличие выбранной модели.
+With story analysis enabled, an additional Ollama request runs between steps 6 and 7. It receives an image copy bounded by 2048 × 2048 pixels, OCR text, and shortened previous-page context. English analysis and dialogue translations are added to the same record. This resized copy is for Ollama, not for the OCR call.
 
-3. **Подготовка изображения.** Функция `load_image()` открывает файл через Pillow, применяет ориентацию из EXIF и переводит изображение в RGB. В записи результата сохраняются путь к файлу, ширина и высота подготовленного изображения.
+An image-reading error or an OCR failure in OCR-only mode creates an error record for the page. If OCR fails while story analysis is enabled, the application can continue with direct image analysis and add a warning. If subsequent Ollama analysis fails, existing recognized text is preserved. An empty region list is shown as no text found; OCR confidence is not measured transcription accuracy.
 
-4. **Подготовка OCR.** `Analyzer.initialize_ocr()` загружает PaddleOCR при первом вызове или смене языка. В приложении используется PP-OCRv5 на CPU. Определение ориентации документа, исправление его геометрии и определение ориентации текстовых строк отключены. На первом запуске библиотеке может потребоваться загрузить модели.
+## Planned improvements
 
-5. **Поиск и распознавание текста.** RGB-изображение преобразуется в массив NumPy, каналы переставляются в порядок BGR, после чего массив передаётся в `PaddleOCR.predict()`. Библиотека выполняет поиск текстовых областей и распознавание. В коде приложения перед этим вызовом нет отдельного уменьшения страницы, бинаризации или удаления шума; внутреннюю подготовку входа выполняет PaddleOCR.
+The architecture is still being refined. I plan to evaluate **PaddleOCR for detection, Manga OCR for crop recognition, and Ollama for page analysis**. This combination is not implemented in the application yet. Before adopting it, I need to evaluate full-page detection separately and compare accuracy and runtime with the current pipeline.
 
-6. **Формирование результата OCR.** Из ответа PaddleOCR приложение извлекает `rec_texts`, `rec_scores` и `rec_polys`. Для каждой области формируется запись с полями `text` (текст), `confidence` (оценка уверенности) и `polygon` (координаты контура). Области сортируются по горизонтальным полосам высотой 100 пикселей: внутри полосы справа налево для японского языка и слева направо для остальных языков. Это приблизительный порядок, который не учитывает структуру панелей.
+## Research
 
-7. **Передача в интерфейс.** В режиме только OCR запись с найденными областями отправляется через `queue.Queue` в основной поток. Интерфейс сохраняет её в памяти и обновляет прогресс. Для выбранной страницы он выводит список распознанных фрагментов с уверенностью в процентах и рисует пронумерованные контуры на изображении. Контуры наносятся до уменьшения картинки для предпросмотра, поэтому масштабируются вместе с ней.
+To assess Japanese manga OCR approaches, I separately compare Tesseract, PaddleOCR, Manga OCR, ChatGPT, and MangaLMM. The research covers dataset preparation, shared evaluation metrics, and error analysis, informing future improvements to the application.
 
-8. **Сохранение.** По кнопке «Сохранить» пользователь экспортирует результаты в JSON с текстом, уверенностью и координатами либо в TXT с текстовым представлением. До экспорта результаты находятся в памяти приложения.
+The [research report](docs/experiment-results.md) contains the full methodology and results. The [verification report](docs/verification.md) covers runtime checks of the application.
 
-В режиме анализа сюжета между шагами 6 и 7 приложение дополнительно обращается к Ollama: передаёт копию страницы размером не более 2048 × 2048 пикселей, текст OCR и сокращённый контекст предыдущих страниц. Анализ и перевод добавляются к той же записи результата. Эта уменьшенная копия предназначена для Ollama, а не для вызова OCR.
+### Research implementation
 
-При ошибке чтения изображения или сбое OCR в режиме только OCR приложение сохраняет сообщение об ошибке для страницы. Если OCR завершился с ошибкой при включённом анализе, приложение может продолжить разбор изображения через Ollama и добавить предупреждение. Если последующий запрос Ollama не удался, уже полученный OCR сохраняется. Пустой список областей отображается как отсутствие найденного текста; уверенность OCR не равна измеренной точности распознавания.
+- Generate text-region images from XML annotations and save reference transcriptions to CSV.
+- Run batch OCR using Tesseract, PaddleOCR, and Manga OCR.
+- Run MangaLMM on full pages and tiles.
+- Match predictions to references, including a separate comparison with ChatGPT on 50 examples.
+- Calculate recognition quality, recorded processing time, and empty predictions.
+- Export results for error analysis.
 
-## Планируемая доработка
+### My hardware
 
-Архитектура находится в доработке. Я планирую проверить разделение этапов: **PaddleOCR для выделения областей, Manga OCR для распознавания кропов и Ollama для анализа страницы**. Эта связка пока не реализована в приложении. Перед её выбором нужно отдельно оценить качество детекции на полных страницах и сравнить точность и время работы с текущим вариантом.
+I run the experiments locally on this laptop:
 
-## Исследовательская часть
-
-Чтобы оценить подходы к распознаванию японского текста, я отдельно сравниваю Tesseract, PaddleOCR, Manga OCR, ChatGPT и MangaLMM. Исследование включает подготовку датасета, единые метрики качества и анализ ошибок. Эти эксперименты помогают обосновывать дальнейшую доработку OCR в приложении.
-
-Полная методология и результаты приведены в [исследовательском отчёте](docs/experiment-results.md). Проверки запуска текущего приложения описаны в [отчёте технической проверки](docs/verification.md).
-
-### Что реализовано в исследовании
-
-- Подготовка изображений текстовых областей по XML-аннотациям и сохранение эталонных транскрипций в CSV.
-- Пакетное распознавание с Tesseract, PaddleOCR и Manga OCR.
-- Скрипты запуска мультимодальной модели MangaLMM на полных страницах и фрагментах.
-- Сопоставление предсказаний с эталоном, включая отдельное сравнение с результатами ChatGPT на выборке из 50 примеров.
-- Расчёт метрик качества, времени обработки и количества пустых ответов.
-- Экспорт результатов для анализа ошибок.
-
-### Моё оборудование
-
-Эксперименты я провожу локально на ноутбуке со следующей конфигурацией:
-
-| Компонент | Характеристики |
+| Component | Specification |
 | --- | --- |
-| Платформа | ARDOR GAMING, NP5x_60_7x_RNx1 |
-| ОС | Windows 10 Домашняя, x64, сборка 19045 |
-| Процессор | Intel Core i5-12450H, 8 ядер и 12 потоков |
-| Оперативная память | 16 ГБ |
-| Видеокарта | NVIDIA GeForce RTX 4050 Laptop GPU |
-| Выделенная видеопамять | 6 ГБ |
+| Platform | ARDOR GAMING, NP5x_60_7x_RNx1 |
+| Operating system | Windows 10 Home, x64, build 19045 |
+| Processor | Intel Core i5-12450H, 8 cores and 12 threads |
+| RAM | 16 GB |
+| GPU | NVIDIA GeForce RTX 4050 Laptop GPU |
+| Dedicated VRAM | 6 GB |
 
-Объём видеопамяти ограничивает конфигурацию MangaLMM: для локального запуска я использую 4-битную квантизацию и уменьшаю разрешение входного изображения.
+VRAM limits the MangaLMM configuration: I use 4-bit quantization and a reduced input-image pixel budget for local inference.
 
-### OCR-системы и причины выбора
+### OCR systems and selection rationale
 
-Для сравнения я выбираю системы с разной специализацией и разными задачами:
+I compare systems with different specializations and tasks:
 
-| Система | Что представляет собой | Почему я использую её |
+| System | Description | Why I include it |
 | --- | --- | --- |
-| [Tesseract](https://github.com/tesseract-ocr/tesseract) | Универсальный OCR-движок | Базовый вариант для сравнения с решениями, специализированными под мангу |
-| [PaddleOCR](https://www.paddleocr.ai/latest/en/version3.x/pipeline_usage/OCR.html) | Пайплайн поиска и распознавания текста | Сравнение с готовым нейросетевым OCR, а в приложении — получение текста и координат областей из целой страницы |
-| [Manga OCR](https://github.com/kha-white/manga-ocr) | Распознаватель японского текста, ориентированный на мангу | Проверка преимущества предметной специализации при чтении готовых кропов |
-| ChatGPT | Сервис с мультимодальными моделями общего назначения | Сравнение транскрипций на тех же 50 кропах и анализ влияния языкового контекста |
-| [MangaLMM](https://github.com/manga109/MangaLMM) | Специализированная мультимодальная модель для манги | Отдельный эксперимент с поиском текста и определением его координат на полной странице |
+| [Tesseract](https://github.com/tesseract-ocr/tesseract) | General-purpose OCR engine | Baseline for comparison with manga-specific recognition |
+| [PaddleOCR](https://www.paddleocr.ai/latest/en/version3.x/pipeline_usage/OCR.html) | Text detection and recognition pipeline | Ready-to-use neural OCR comparison and, in the application, text and coordinates from a whole page |
+| [Manga OCR](https://github.com/kha-white/manga-ocr) | Japanese text recognizer focused on manga | Test the benefit of domain specialization on prepared crops |
+| ChatGPT | Service providing general-purpose multimodal models | Transcribe the same 50 crops and examine the influence of language context |
+| [MangaLMM](https://github.com/manga109/MangaLMM) | Manga-specific multimodal model | Separate experiment on text detection, coordinates, and recognition on full pages |
 
-В текущем Manga Reader я использую PaddleOCR для детекции и распознавания, потому что он возвращает текст, координаты и уверенность в одном пайплайне. Среди трёх базовых OCR-систем на 3116 кропах лучший результат показал Manga OCR, но для работы с полной страницей ему нужен отдельный детектор. Связку PaddleOCR для детекции и Manga OCR для распознавания планирую проверить в дальнейшей доработке.
+I currently use PaddleOCR in Manga Reader because one pipeline returns text, coordinates, and confidence. Manga OCR performed best among the three baseline systems on 3116 crops, but it needs a separate detector for full-page processing. I plan to evaluate that combination during further development.
 
-Подробные описания, ограничения и причины выбора каждой системы приведены в [отчёте](docs/experiment-results.md#ocr-системы-и-причины-выбора).
+Detailed descriptions and limitations are in the [research report](docs/experiment-results.md#ocr-systems-and-selection-rationale).
 
-### Методология сравнения
+### Comparison methodology
 
-Я разделяю три эксперимента: сравнение Tesseract, PaddleOCR и Manga OCR на 3116 одинаковых кропах, сравнение четырёх систем с ChatGPT на фиксированных 50 кропах (seed = 42) и отдельную оценку MangaLMM на 50 полных изображениях официального MangaOCR test split.
+I separate the 3116-crop baseline, the four-system comparison on the same 50 crops with seed 42, and MangaLMM evaluation on 50 full images from the official MangaOCR test split.
 
-Для готовых кропов одинаково нормализую эталоны и предсказания через NFKC и удаление пробелов, затем рассчитываю CER по суммарному числу символов и Exact Match. Перед сравнением проверяю совпадение файлов и отсутствие пропусков результатов.
+For crops, I apply NFKC normalization and remove whitespace from references and predictions, calculate corpus-level CER and Exact Match, and check file correspondence and missing results.
 
-Для MangaLMM привожу координаты рамок к исходному размеру страницы и сопоставляю области один к одному при IoU ≥ 0,5. Рассчитываю метрики детекции и end-to-end показатели с учётом сходства текста. В scaled evaluator для текста удаляются пробелы, но NFKC не применяется.
+For MangaLMM, I scale boxes back to the original image and match regions one to one at IoU ≥ 0.5. I calculate detection metrics and end-to-end scores incorporating text similarity. The scaled evaluator removes whitespace from text but does not apply NFKC.
 
-Формулы, правила отбора выборок, учёт пустых ответов и ошибок, алгоритм сопоставления и границы измерения времени описаны в [методологии сравнения](docs/experiment-results.md#методология-сравнения).
+Formulas, sample selection, empty-answer handling, matching, and timing boundaries are specified in the [comparison methodology](docs/experiment-results.md#comparison-methodology).
 
-### Как оценивается качество
+### Quality metrics
 
-В базовом сравнении текст приводится к Unicode NFKC, пробелы и переносы строк удаляются одинаково для всех систем.
-
-| Метрика | Что показывает |
+| Metric | Meaning |
 | --- | --- |
-| Character Error Rate (CER) | Суммарное расстояние Левенштейна, делённое на количество символов эталона. Чем меньше, тем лучше. |
-| Exact Match | Доля примеров, полностью совпавших с эталоном после нормализации. |
-| Empty predictions | Количество пустых ответов. |
-| Average inference time | Среднее записанное время распознавания. Загрузка модели измеряется отдельно от отдельных вызовов в базовом Manga OCR runner. |
+| Character Error Rate (CER) | Total Levenshtein distance divided by total reference characters; lower is better |
+| Exact Match | Fraction of examples matching the reference completely after normalization |
+| Empty predictions | Number of empty recognized strings |
+| Average inference time | Average recorded call duration; model loading is measured separately from individual recognition calls |
 
-Сравнивать модели следует на одной выборке и с одинаковой нормализацией. Метрики времени зависят от оборудования и реализации runner. Неуспешные вызовы учитываются в CER и Exact Match; среднее время считается только по успешным вызовам. Загрузка моделей выполняется до замера распознавания.
+I compare systems on the same sample with the same normalization. Timing depends on hardware and the runner. Failed baseline calls remain in CER and Exact Match, but `evaluate_results.py` averages latency only across successful calls. Models are initialized before calls are timed.
 
-### Результаты исследования
+### Research results
 
-Я сравниваю Tesseract, PaddleOCR и Manga OCR на 3116 текстовых кропах Hamlet из Manga109. Manga OCR показал CER **9,13%** и Exact Match **70,64%**. Для Tesseract значения составили 97,74% и 2,54%, для PaddleOCR — 81,45% и 4,91%.
+On 3116 Hamlet crops, Manga OCR achieved **9.13% CER** and **70.64% Exact Match**. Tesseract achieved 97.74% and 2.54%, and PaddleOCR 81.45% and 4.91%, respectively.
 
-Для отдельного сравнения с ChatGPT я использую **50 одинаковых кропов** с фиксированной случайной выборкой, seed = 42:
+On the separate fixed sample of 50 crops:
 
-| Система | CER ↓ | Exact Match ↑ |
+| System | CER ↓ | Exact Match ↑ |
 | --- | ---: | ---: |
-| Tesseract | 97,92% | 4% |
-| PaddleOCR | 80,76% | 12% |
-| Manga OCR | 7,45% | 76% |
-| ChatGPT | 6,24% | 80% |
+| Tesseract | 97.92% | 4% |
+| PaddleOCR | 80.76% | 12% |
+| Manga OCR | 7.45% | 76% |
+| ChatGPT | 6.24% | 80% |
 
-На этой выборке ChatGPT получил 40 точных совпадений, Manga OCR — 38. Я рассматриваю эту разницу как предварительный результат. Для повторного расчёта нужно дополнить репозиторий исходными ответами ChatGPT и параметрами запуска.
+ChatGPT matched 40 examples exactly, compared with 38 for Manga OCR. I treat this difference as preliminary. Recalculation requires the original ChatGPT responses and the corresponding run settings to be added to the repository.
 
-MangaLMM я оцениваю отдельно в задаче OCR полной страницы. На 50 изображениях официального MangaOCR test split после исправления масштаба координат получены Detection Hmean **3,87%** и End-to-end Hmean с учётом NED **0,86%**. Для запуска на RTX 4050 с 6 ГБ VRAM я использую 4-битную квантизацию и ограниченный бюджет изображения. Эти метрики характеризуют поиск и распознавание областей на странице, поэтому я рассматриваю их отдельно от CER на готовых кропах.
+MangaLMM is evaluated separately on full pages. After coordinate scaling was corrected, the 50-image official MangaOCR test sample yielded **3.87% Detection Hmean** and **0.86% End-to-end Hmean** with NED similarity. The local run used the RTX 4050, 4-bit quantization, and a reduced pixel budget. These scores assess localization and recognition together and are separate from crop CER.
 
-Методику, результаты и анализ ошибок я описываю в [подробном отчёте](docs/experiment-results.md). Проверки запуска и обработки сбоев вынесены в [отдельный отчёт](docs/verification.md).
+### Main research files
 
-### Основные файлы
-
-| Файл | Назначение |
+| File | Purpose |
 | --- | --- |
-| [prepare_dataset.py](prepare_dataset.py) | Подготовка кропов и ground_truth.csv из Hamlet/Hamlet.xml. |
-| [run_mangaocr_batch.py](run_mangaocr_batch.py) | Пакетный запуск Manga OCR с записью результатов каждого примера. |
-| [run_tesseract_batch.py](run_tesseract_batch.py) | Пакетный запуск Tesseract. |
-| [run_paddle_batch.py](run_paddle_batch.py) | Пакетный запуск PaddleOCR. |
-| [evaluate_results.py](evaluate_results.py) | Базовое сравнение OCR по CER, Exact Match и времени. |
-| [prepare_chatgpt_50.py](prepare_chatgpt_50.py) | Подготовка выборки для сравнения с ChatGPT. |
-| [compare_ocr_test50.py](compare_ocr_test50.py) | Сравнение четырёх систем на общей выборке. |
-| [run_mangallmm_fullpages.py](run_mangallmm_fullpages.py) | Распознавание полных страниц с MangaLMM. |
-| [run_mangallmm_tiled.py](run_mangallmm_tiled.py) | Распознавание страниц по фрагментам. |
+| [prepare_dataset.py](prepare_dataset.py) | Generate crops and `ground_truth.csv` from `Hamlet/Hamlet.xml` |
+| [run_mangaocr_batch.py](run_mangaocr_batch.py) | Batch Manga OCR with per-example results |
+| [run_tesseract_batch.py](run_tesseract_batch.py) | Batch Tesseract OCR |
+| [run_paddle_batch.py](run_paddle_batch.py) | Batch PaddleOCR |
+| [evaluate_results.py](evaluate_results.py) | Baseline CER, Exact Match, and timing evaluation |
+| [prepare_chatgpt_50.py](prepare_chatgpt_50.py) | Prepare a sample for the ChatGPT comparison |
+| [compare_ocr_test50.py](compare_ocr_test50.py) | Compare four systems on the same sample |
+| [run_mangallmm_fullpages.py](run_mangallmm_fullpages.py) | MangaLMM full-page inference |
+| [run_mangallmm_tiled.py](run_mangallmm_tiled.py) | MangaLMM tiled inference |
 
-### Запуск базового эксперимента
+### Run a baseline experiment
 
-Ниже приведён путь для Manga OCR. Остальные модели требуют собственных зависимостей и настроек.
+The following starts with Manga OCR; the other engines require their own setup.
 
-1. Клонируйте репозиторий и перейдите в его каталог.
-2. Создайте виртуальное окружение и установите зависимости.
+1. Clone the repository and open its directory.
+2. Create an environment and install benchmark dependencies:
 
-   ~~~powershell
+   ```powershell
    python -m venv .venv
    .\.venv\Scripts\Activate.ps1
    python -m pip install -r requirements-benchmark.txt
-   ~~~
+   ```
 
-3. Убедитесь, что в Hamlet находятся изображения и Hamlet.xml. Для использования исходных данных учитывайте условия их правообладателей.
-4. Подготовьте кропы и эталонные тексты.
+3. Ensure that the images and `Hamlet.xml` are in `Hamlet`. Follow the rightsholders' terms when using the source data.
+4. Run `python prepare_dataset.py`.
+5. By default, data and results use the repository directory. Set `OCR_BENCHMARK_DIR` or pass `--dataset-dir`, `--ground-truth`, and `--output` to use another location.
+6. Run `python run_mangaocr_batch.py`.
 
-   ~~~powershell
-   python prepare_dataset.py
-   ~~~
+Results contain `file`, `ground_truth`, `prediction`, `time_sec`, and `status`. The first run may need model downloads. Add `--limit 3` for a smoke test or `--resume` to continue. Resume keeps existing rows, including errors; without it, the results file is recreated. Failed samples produce a nonzero exit code and retain details in `status`.
 
-5. По умолчанию данные и результаты находятся в каталоге репозитория. Для другого каталога задайте переменную `OCR_BENCHMARK_DIR` или параметры `--dataset-dir`, `--ground-truth`, `--output` пакетного запуска.
-6. Запустите распознавание.
-
-   ~~~powershell
-   python run_mangaocr_batch.py
-   ~~~
-
-Результат содержит file, ground_truth, prediction, time_sec и status. Первый запуск Manga OCR может потребовать загрузки весов модели.
-
-Для пробного запуска добавьте `--limit 3`, для продолжения — `--resume`. Существующие строки при продолжении сохраняются, включая ошибки; без `--resume` результат создаётся заново. При ошибках runner завершает работу с ненулевым кодом и оставляет подробности в столбце `status`.
-
-~~~powershell
+```powershell
 python run_paddle_batch.py --limit 3
 python run_tesseract_batch.py --limit 3 --tesseract-cmd "C:\Program Files\Tesseract-OCR\tesseract.exe"
 python evaluate_results.py results_mangaocr.csv --output report.csv
 python prepare_chatgpt_50.py --size 50 --seed 42
 python -m unittest discover -s tests -v
-~~~
+```
 
-Tesseract устанавливается отдельно с языковыми данными `jpn`; по умолчанию используется исполняемый файл из PATH. PaddleOCR запускается на CPU; `--device gpu:0` требует отдельной совместимой GPU-установки PaddlePaddle/CUDA/cuDNN.
+Install the Tesseract executable and `jpn` language data separately. The runner uses PATH unless `--tesseract-cmd` is provided. PaddleOCR defaults to CPU; `--device gpu:0` requires a compatible PaddlePaddle GPU/CUDA/cuDNN installation.
 
-В `evaluate_results.py` можно передать один или несколько CSV. Без аргументов ожидаются все три базовые системы. При нескольких CSV проверяется совпадение файлов и эталонных текстов, чтобы неполная выборка не улучшала рейтинг. Пустые CSV и повторяющиеся имена примеров считаются ошибкой.
+`evaluate_results.py` accepts one or more CSV files. Without arguments, it expects all three baseline files. With multiple files, it verifies that examples and normalized references match. Empty CSV files and duplicate sample filenames are errors.
 
-Для MangaLMM-скриптов страницы Hamlet по умолчанию также берутся из репозитория. Для полного внешнего Manga109 задайте `MANGA109_ROOT` на каталог с `images/` и `annotations/`. Подготовка официальной выборки из разных книг требует именно такого полного набора. MangaLMM требует отдельного окружения с CUDA, PyTorch, Transformers, Accelerate, bitsandbytes, qwen-vl-utils и datasets; этот тяжёлый сценарий не входит в установку Manga Reader.
+MangaLMM scripts also use the repository's Hamlet pages by default. For a complete external Manga109 dataset, set `MANGA109_ROOT` to a directory containing `images/` and `annotations/`. Preparing the official sample across multiple books requires that complete dataset. MangaLMM needs a separate environment with CUDA, PyTorch, Transformers, Accelerate, bitsandbytes, qwen-vl-utils, and datasets; these are separate from the standard application installation.
 
-## Мой вклад
+## My contribution
 
-В рамках проекта я:
+In this project, I:
 
-- Автоматизирую подготовку 3116 кропов Hamlet по XML-разметке и формирование CSV с эталонными транскрипциями.
-- Сравниваю Tesseract, PaddleOCR и Manga OCR на одинаковых данных по CER, Exact Match, пустым ответам и времени обработки.
-- Провожу качественное сравнение пяти систем на одном изображении и разбираю пропуски, искажения текста и повторные детекции.
-- Формирую фиксированную выборку из 50 кропов для сравнения с ChatGPT и анализирую случаи, когда модель изменяет исходный текст по языковому контексту.
-- Адаптирую запуск MangaLMM под RTX 4050 с 6 ГБ VRAM с помощью 4-битной квантизации и ограничения бюджета изображения.
-- Исследую обработку страниц по сетке 2 × 2, объединение результатов в координатах страницы и удаление дубликатов.
-- Исправляю сопоставление координат после изменения размера входа Qwen с использованием `image_grid_thw`. После коррекции оценщик находит 37 пространственных совпадений вместо нуля.
-- Оцениваю детекцию и end-to-end OCR на 50 изображениях официального MangaOCR test split.
-- Интегрирую OCR и локальную Ollama в Manga Reader с просмотром областей текста и экспортом результатов.
+- Automate preparation of 3116 Hamlet crops and reference CSV data from XML annotations.
+- Compare Tesseract, PaddleOCR, and Manga OCR on the same data using CER, Exact Match, empty predictions, and recorded runtime.
+- Compare five systems qualitatively on one image and examine omissions, distorted text, and duplicate regions.
+- Build a fixed 50-crop comparison with ChatGPT and analyze cases where language context changes the original text.
+- Adapt MangaLMM to a 6 GB RTX 4050 using 4-bit quantization and a reduced input pixel budget.
+- Investigate 2 × 2 tiled inference, full-page coordinate conversion, result merging, and duplicate removal.
+- Correct coordinate matching after Qwen image resizing using `image_grid_thw`; the corrected evaluation finds 37 spatial matches instead of zero.
+- Evaluate detection and end-to-end OCR on 50 images from the official MangaOCR test split.
+- Integrate OCR and local Ollama into Manga Reader with region previews and result export.
 
-Для технической проверки и доработки кода я использую Codex. С его помощью исправлены пути и обработка ошибок, добавлены параметры запуска, сохранение промежуточных результатов и 13 автоматических тестов. Результаты экспериментов и проверки приложения описаны в отдельных отчётах.
+I use Codex to help verify and improve the code. This work includes path and error-handling fixes, command-line options, incremental result saving, and 14 automated tests. Research results and application checks are documented separately.
 
-## Ограничения и известные проблемы
+## Limitations and known issues
 
-### Качество распознавания и анализа
+### Recognition and analysis quality
 
-- Основное сравнение трёх OCR выполнено на кропах одной манги Hamlet. Сравнение с ChatGPT охватывает 50 кропов. Я не распространяю эти результаты на любые манги, языки и варианты сканирования.
-- Вертикальные надписи, рукописный текст, стилизованные эффекты и сложный порядок панелей могут распознаваться с ошибками. Порядок областей в приложении приблизительный и не восстанавливает структуру панелей.
-- В текущем приложении PaddleOCR выполняет и детекцию, и распознавание. Его выбор обусловлен функциональностью пайплайна; качество детекции на полных страницах ещё требует отдельной оценки. Связка с Manga OCR пока находится в планах доработки.
-- Локальная конфигурация MangaLMM показала низкое качество end-to-end OCR. На 6 из 50 страниц не удалось распарсить детекции. Ограничение разрешения и 4-битная квантизация отличают мой запуск от условий исходной работы.
-- Ollama может пропускать детали, повторяться и добавлять неподтверждённые интерпретации. Перевод и анализ требуют проверки. Уверенность OCR не является измеренной точностью распознавания или перевода.
+- The main OCR comparison uses crops from one manga, Hamlet. The ChatGPT comparison uses 50 crops. I do not generalize these results to every manga, language, or scan type.
+- Vertical lettering, handwriting, stylized sound effects, and complex panel layouts may be recognized incorrectly. The application's approximate region order does not recover panel structure.
+- PaddleOCR handles both detection and recognition in the current application. Full-page detection quality still needs separate evaluation; integrating Manga OCR remains planned work.
+- The local MangaLMM configuration produced low end-to-end scores. Six of 50 pages had no parsed detections. Reduced resolution and 4-bit quantization differ from the original research conditions.
+- Ollama may omit details, repeat itself, or add unsupported interpretations. Review translations and analysis. OCR confidence is not measured transcription or translation accuracy.
 
-### Скорость и совместимость
+### Performance and compatibility
 
-- PaddleOCR в штатной установке Manga Reader работает на CPU. При проверке отдельный небольшой кроп обрабатывался более минуты; полные страницы могут занимать существенно больше времени.
-- В проверенной Windows-конфигурации PaddlePaddle 3.3.1 возникала ошибка oneDNN `ConvertPirAttribute2RuntimeAttribute`. В коде применён обход: oneDNN отключён на Windows. Это позволяет выполнять OCR, но ограничивает доступное ускорение.
-- В отдельном GPU-окружении обнаружен `WinError 127` при загрузке `cudnn_cnn64_9.dll`. Совместимость этого окружения не исправлена. Для штатного CPU-режима приложения cuDNN не требуется; GPU-запуск требует согласованных библиотек.
-- Первый запуск OCR требует загрузки моделей. Для анализа сцены нужны работающий локальный сервис Ollama и установленная выбранная модель.
+- The standard application uses CPU PaddleOCR. During verification, one small crop took over a minute; full pages can take substantially longer.
+- On the tested Windows configuration, PaddlePaddle 3.3.1 with oneDNN raised `ConvertPirAttribute2RuntimeAttribute`. The code disables oneDNN on Windows as a workaround, affecting available acceleration.
+- A separate GPU environment raised `WinError 127` while loading `cudnn_cnn64_9.dll`. That compatibility issue is unresolved. The standard CPU installation does not require cuDNN; GPU inference requires matching libraries.
+- First-time OCR setup requires model downloads. Scene analysis requires a running local Ollama service and the selected model.
 
-### Ограничения текущего приложения
+### Current application limits
 
-- «Остановить» завершает очередь после текущей страницы и не прерывает уже выполняющийся OCR или запрос Ollama. Для HTTP-запроса анализа задан тайм-аут 900 секунд.
-- Результаты хранятся в памяти до ручного экспорта. Автосохранение и восстановление сессии после закрытия приложения не реализованы. Повторный запуск анализа обрабатывает добавленные страницы заново.
-- Поддерживаются изображения. Импорт PDF и CBZ, автоматическое удаление исходного текста и вёрстка переведённых страниц пока не реализованы.
+- **Stop** ends the queue after the current page and does not interrupt an active OCR call or Ollama request. Analysis requests use a 900-second HTTP timeout.
+- Results stay in memory until manual export. Autosave and session recovery are not implemented. Running analysis again processes all added pages again.
+- Image files are supported. PDF/CBZ import, automatic source-text removal, and translated-page typesetting are not implemented.
 
-### Воспроизводимость экспериментов
+### Experiment reproducibility
 
-- Исходные ответы ChatGPT для повторного расчёта не опубликованы; точная версия модели и дата запуска не зафиксированы. Версии библиотек и настройки сохранены не для всех исследовательских запусков.
-- В скрипте подготовки официальной выборки MangaOCR отбор зависит от наличия локальных сканов. Seed = 42 фиксирует случайный порядок, но сам по себе не гарантирует представительность выборки.
-- В оценщиках кропов и scaled-оценке MangaLMM различается нормализация текста. В скрипте сравнения 50 кропов отсутствующие строки исключаются из расчёта соответствующей системы, поэтому перед сравнением нужно проверить `samples = 50` и `missing = 0`.
-- Часть параметров MangaLMM задаётся в исследовательских скриптах. Зависимости этого окружения не зафиксированы отдельным проверенным набором. Текущий базовый runner не выполняет отдельный прогрев и серию повторных замеров времени.
-- После доработки кода проведены автоматические тесты и короткие пробные запуски. Полный бенчмарк и MangaLMM заново не прогонялись; исторические результаты и проверку текущей версии я учитываю отдельно.
+- Original ChatGPT responses are not published, and the exact model version and run date were not recorded. Library versions and settings are incomplete for some research runs.
+- Official MangaOCR sample selection depends on available local scans. Seed 42 fixes the random order, not sample representativeness.
+- Crop and scaled MangaLMM evaluators normalize text differently. The 50-crop comparison script excludes missing rows, so `samples = 50` and `missing = 0` must be checked before comparison.
+- Some MangaLMM parameters remain in research scripts, and that environment lacks a separately pinned, verified dependency set. The current baseline runner performs no separate warm-up or repeated timing series.
+- Maintenance verification used automated tests and short smoke runs. The complete benchmark and MangaLMM were not rerun; I keep historical research results separate from current-version checks.
 
-В коде уже исправлены сопоставление координат при оценке MangaLMM и абсолютные пути старого окружения. Успешный результат OCR сохраняется при сбое последующего анализа Ollama. Эти изменения описаны в [результатах экспериментов](docs/experiment-results.md) и [отчёте технической проверки](docs/verification.md). Пользовательские ограничения и настройка приложения приведены в [инструкции](НАЧАТЬ.md).
-
+Coordinate matching for MangaLMM evaluation and old absolute paths have been corrected. Successful OCR survives a later Ollama failure. See the [experiment results](docs/experiment-results.md), [verification report](docs/verification.md), and [setup guide](START.md).

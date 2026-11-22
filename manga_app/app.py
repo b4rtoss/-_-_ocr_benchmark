@@ -15,7 +15,7 @@ else:
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title('Manga Reader — текст, сцены и сюжет')
+        self.title('Manga Reader - Text, Scenes and Story')
         self.geometry('1250x820')
         self.minsize(950, 620)
         self.configure(bg='#F5F6F8')
@@ -33,7 +33,7 @@ class App(tk.Tk):
         self.busy = False
         self.analyzer = Analyzer()
         self.mode = tk.BooleanVar(value=True)
-        self.lang = tk.StringVar(value='Японский')
+        self.lang = tk.StringVar(value='Japanese')
         self.model = tk.StringVar(value='qwen3-vl:4b-instruct')
         header = ttk.Frame(self, padding=16)
         header.pack(fill='x', padx=16, pady=(16, 16))
@@ -45,25 +45,25 @@ class App(tk.Tk):
         right.pack(side='right')
         self.controls = []
         for index, (title, command) in enumerate([
-                ('Добавить страницы', self.add_files), ('Открыть папку', self.add_folder)]):
+                ('Add pages', self.add_files), ('Open folder', self.add_folder)]):
             holder, button = self.header_button(left, title, command)
             holder.pack(side='left', padx=(0, 8 if index == 0 else 0))
             self.controls.append(button)
         for index, (title, command) in enumerate([
-                ('Инструкция', lambda: os.startfile(str(Path(__file__).resolve().parent.parent / 'НАЧАТЬ.md'))),
-                ('Настройки', self.open_settings), ('Сохранить', self.save)]):
+                ('Guide', lambda: os.startfile(str(Path(__file__).resolve().parent.parent / 'START.md'))),
+                ('Settings', self.open_settings), ('Save', self.save)]):
             holder, _ = self.header_button(right, title, command)
             holder.pack(side='left', padx=(0, 8 if index < 2 else 0))
         second_row = ttk.Frame(header)
         second_row.pack(fill='x', pady=(16, 0))
-        ttk.Label(second_row, text='Язык оригинала').pack(side='left', padx=(0, 8))
+        ttk.Label(second_row, text='Source language').pack(side='left', padx=(0, 8))
         self.language_select = ttk.Combobox(second_row, textvariable=self.lang,
-            values=['Японский', 'Английский', 'Русский'], state='readonly', width=14)
+            values=['Japanese', 'English', 'Russian'], state='readonly', width=14)
         self.language_select.pack(side='left', padx=(0, 8))
-        holder, button = self.header_button(second_row, 'Анализировать', self.start, primary=True)
+        holder, button = self.header_button(second_row, 'Analyze', self.start, primary=True)
         holder.pack(side='left')
         self.controls.append(button)
-        self.stop_holder, self.stop_button = self.header_button(second_row, 'Остановить', self.cancel.set)
+        self.stop_holder, self.stop_button = self.header_button(second_row, 'Stop', self.cancel.set)
         panes = ttk.Panedwindow(self, orient='horizontal')
         panes.pack(fill='both', expand=True, padx=16)
         self.pages = tk.Listbox(panes, width=25, exportselection=False)
@@ -79,7 +79,7 @@ class App(tk.Tk):
         scroll.pack(side='right', fill='y')
         self.text.pack(fill='both', expand=True)
         panes.add(frame, weight=3)
-        self.status = tk.StringVar(value='Выберите страницы одной главы в порядке чтения. JPG, PNG, WebP, BMP, TIFF.')
+        self.status = tk.StringVar(value='Select pages from one chapter in reading order. JPG, PNG, WebP, BMP, TIFF.')
         ttk.Label(self, textvariable=self.status, style='Page.TLabel', padding=(16, 12), wraplength=1150).pack(fill='x')
         self.progress = ttk.Progressbar(self)
         self.progress.pack(fill='x', padx=16, pady=(0, 16))
@@ -101,24 +101,24 @@ class App(tk.Tk):
 
     def open_settings(self):
         dialog = tk.Toplevel(self)
-        dialog.title('Настройки')
+        dialog.title('Settings')
         dialog.configure(bg='white')
         dialog.resizable(False, False)
         dialog.transient(self)
         content = ttk.Frame(dialog, padding=16)
         content.pack(fill='both', expand=True)
-        ttk.Checkbutton(content, text='Сцены, персонажи и сюжет (Ollama)',
+        ttk.Checkbutton(content, text='Scenes, characters and story (Ollama)',
                         variable=self.mode).pack(anchor='w', pady=(0, 16))
-        ttk.Label(content, text='Модель Ollama').pack(anchor='w', pady=(0, 8))
+        ttk.Label(content, text='Ollama model').pack(anchor='w', pady=(0, 8))
         model_entry = ttk.Entry(content, textvariable=self.model, width=36)
         model_entry.pack(fill='x', pady=(0, 16))
         actions = ttk.Frame(content)
         actions.pack(fill='x')
         # The existing clear action stays available without crowding the header.
-        holder, clear_button = self.header_button(actions, 'Очистить', self.clear)
+        holder, clear_button = self.header_button(actions, 'Clear', self.clear)
         holder.pack(side='left', padx=(0, 8))
         clear_button.configure(state='disabled' if self.busy else 'normal')
-        holder, _ = self.header_button(actions, 'Закрыть', dialog.destroy)
+        holder, _ = self.header_button(actions, 'Close', dialog.destroy)
         holder.pack(side='right')
         dialog.protocol('WM_DELETE_WINDOW', dialog.destroy)
         dialog.grab_set()
@@ -135,7 +135,7 @@ class App(tk.Tk):
             self.show()
 
     def add_files(self):
-        self.add(filedialog.askopenfilenames(filetypes=[('Страницы манги', '*.jpg *.jpeg *.png *.webp *.bmp *.tif *.tiff')]))
+        self.add(filedialog.askopenfilenames(filetypes=[('Manga pages', '*.jpg *.jpeg *.png *.webp *.bmp *.tif *.tiff')]))
 
     def add_folder(self):
         folder = filedialog.askdirectory()
@@ -151,7 +151,7 @@ class App(tk.Tk):
         self.canvas.delete('all')
         self.text.delete('1.0', 'end')
         self.progress.configure(value=0)
-        self.status.set('Выберите страницы новой главы.')
+        self.status.set('Select pages for a new chapter.')
 
     def show(self, event=None):
         selected = self.pages.curselection()
@@ -160,7 +160,7 @@ class App(tk.Tk):
         path = self.files[selected[0]]
         record = self.records.get(path, {})
         self.text.delete('1.0', 'end')
-        self.text.insert('end', self.format_record(record) if record else 'Страница ещё не проанализирована.')
+        self.text.insert('end', self.format_record(record) if record else 'This page has not been analyzed yet.')
         self.canvas.delete('all')
         try:
             image = load_image(path)
@@ -174,16 +174,16 @@ class App(tk.Tk):
             self.canvas.delete('all')
             self.canvas.create_image(self.canvas.winfo_width()/2, self.canvas.winfo_height()/2, image=self.photo)
         except Exception as exc:
-            self.text.insert('end', '\nНе удалось открыть изображение: ' + str(exc))
+            self.text.insert('end', '\nCould not open image: ' + str(exc))
 
     @staticmethod
     def format_record(record):
         if record.get('error'):
-            return 'Ошибка: ' + record['error']
-        parts = [record.get('analysis', ''), '\nРАСПОЗНАННЫЙ ТЕКСТ (порядок приблизительный)\n']
+            return 'Error: ' + record['error']
+        parts = [record.get('analysis', ''), '\nRECOGNIZED TEXT (approximate order)\n']
         parts += [f"{i}. {r['text']}  [{r['confidence']:.0%}]" for i, r in enumerate(record.get('regions', []), 1)]
         if not record.get('regions'):
-            parts.append('Текст не найден или OCR недоступен.')
+            parts.append('No text found or OCR is unavailable.')
         parts += record.get('warnings', [])
         return '\n'.join(parts)
 
@@ -192,7 +192,7 @@ class App(tk.Tk):
             return
         story, model = self.mode.get(), self.model.get().strip()
         if story and not model:
-            messagebox.showerror('Настройки', 'Укажите модель Ollama или отключите анализ сюжета.')
+            messagebox.showerror('Settings', 'Enter an Ollama model or turn off story analysis.')
             return
         self.busy = True
         self.language_select.configure(state='disabled')
@@ -201,20 +201,20 @@ class App(tk.Tk):
         for button in self.controls:
             button.configure(state='disabled')
         paths = list(self.files)
-        language = {'Японский': 'japan', 'Английский': 'en', 'Русский': 'ru'}[self.lang.get()]
+        language = {'Japanese': 'japan', 'English': 'en', 'Russian': 'ru'}[self.lang.get()]
         self.progress.configure(value=0, maximum=len(paths))
         def worker():
             context = ''
             try:
                 if story:
-                    self.events.put(('status', 'Проверяю локальную модель Ollama…'))
+                    self.events.put(('status', 'Checking the local Ollama model...'))
                     tags = request_json('tags', timeout=5).get('models', [])
                     if model not in [m['name'] for m in tags]:
-                        raise RuntimeError(f'Модель {model} не установлена. Выполните: ollama pull {model}')
+                        raise RuntimeError(f'Model {model} is not installed. Run: ollama pull {model}')
                 for i, path in enumerate(paths):
                     if self.cancel.is_set():
                         break
-                    self.events.put(('status', f'{i+1}/{len(paths)}: {Path(path).name}. Первый запуск загружает OCR-модели; это может занять несколько минут.'))
+                    self.events.put(('status', f'{i+1}/{len(paths)}: {Path(path).name}. The first run downloads OCR models; this may take several minutes.'))
                     try:
                         record = self.analyzer.analyze(path, language, story, model, context)
                         context = (context + '\n' + Path(path).name + '\n' + record['analysis'])[-12000:]
@@ -239,30 +239,30 @@ class App(tk.Tk):
                     self.progress.configure(value=count)
                     self.show()
                 elif kind == 'failure':
-                    messagebox.showerror('Не удалось запустить анализ', value)
+                    messagebox.showerror('Could not start analysis', value)
                 elif kind == 'done':
                     self.busy = False
                     self.language_select.configure(state="readonly")
                     self.stop_holder.pack_forget()
                     for button in self.controls:
                         button.configure(state='normal')
-                    self.status.set('Остановлено.' if self.cancel.is_set() else 'Обработка завершена. Проверьте результаты и сообщения об ошибках. Анализ модели может содержать неточности.')
+                    self.status.set('Stopped.' if self.cancel.is_set() else 'Processing complete. Review the results and any errors. Model analysis may be inaccurate.')
         except queue.Empty:
             pass
         self.after(150, self.poll)
 
     def save(self):
         if not self.records:
-            messagebox.showinfo('Сохранение', 'Сначала проанализируйте страницы.')
+            messagebox.showinfo('Save', 'Analyze some pages first.')
             return
-        path = filedialog.asksaveasfilename(defaultextension='.json', filetypes=[('JSON — текст и координаты', '*.json'), ('Текст', '*.txt')])
+        path = filedialog.asksaveasfilename(defaultextension='.json', filetypes=[('JSON - text and coordinates', '*.json'), ('Text', '*.txt')])
         if path:
             try:
                 records = [self.records[p] for p in self.files if p in self.records]
                 content = json.dumps(records, ensure_ascii=False, indent=2) if path.lower().endswith('.json') else '\n\n'.join(r['file']+'\n'+self.format_record(r) for r in records)
                 Path(path).write_text(content, encoding='utf-8')
             except Exception as exc:
-                messagebox.showerror('Ошибка сохранения', str(exc))
+                messagebox.showerror('Could not save', str(exc))
 
 if __name__ == '__main__':
     App().mainloop()

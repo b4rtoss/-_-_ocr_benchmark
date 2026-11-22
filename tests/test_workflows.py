@@ -129,9 +129,9 @@ class Workflows(unittest.TestCase):
         path = self.base / 'page.png'
         Image.new('RGB', (40, 50), 'white').save(path)
         with patch.object(Analyzer, 'recognize', side_effect=RuntimeError('ocr failed')), \
-                patch('manga_app.engine.request_json', return_value={'message': {'content': 'Сцена'}, 'done_reason': 'length'}):
+                patch('manga_app.engine.request_json', return_value={'message': {'content': 'Scene'}, 'done_reason': 'length'}):
             record = Analyzer().analyze(path)
-        self.assertEqual(record['analysis'], 'Сцена')
+        self.assertEqual(record['analysis'], 'Scene')
         self.assertEqual(len(record['warnings']), 2)
 
     def test_ocr_only_does_not_call_ollama(self):
@@ -142,6 +142,24 @@ class Workflows(unittest.TestCase):
                 patch('manga_app.engine.request_json') as request:
             self.assertEqual(Analyzer().analyze(path, story=False)['regions'], [])
             request.assert_not_called()
+
+    def test_story_requests_english_without_translating_ocr_input(self):
+        path = self.base / 'page.png'
+        Image.new('RGB', (40, 50), 'white').save(path)
+        regions = [{'text': '日本語', 'confidence': 0.9, 'polygon': [[0, 0], [20, 0], [20, 20], [0, 20]]}]
+        with patch.object(Analyzer, 'recognize', return_value=regions), \
+                patch('manga_app.engine.request_json', return_value={'message': {'content': 'An English analysis.'}}) as request:
+            record = Analyzer().analyze(path, context='An earlier page.')
+        route, payload = request.call_args.args
+        self.assertEqual(route, 'chat')
+        message = payload['messages'][0]
+        self.assertIn('Respond in English', message['content'])
+        self.assertIn('translation into English', message['content'])
+        self.assertIn('日本語', message['content'])
+        self.assertIn('An earlier page.', message['content'])
+        self.assertEqual(len(message['images']), 1)
+        self.assertEqual(record['regions'], regions)
+        self.assertEqual(record['analysis'], 'An English analysis.')
 
     def test_natural_page_order(self):
         self.assertEqual(sorted(['10.png', '2.png', '1.png'], key=natural_key), ['1.png', '2.png', '10.png'])

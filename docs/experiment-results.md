@@ -1,109 +1,107 @@
-# Результаты экспериментов с OCR манги
+# Manga OCR experiments
 
-В этом проекте я сравниваю системы распознавания японского текста в манге. Моя цель — определить, как они справляются с готовыми текстовыми фрагментами и с полными страницами, а также какие ошибки возникают при работе в условиях ограниченной памяти GPU.
+In this project, I compare systems for recognizing Japanese text in manga. I investigate prepared text crops, full-page processing, and errors that arise when running multimodal models with limited GPU memory.
 
-Я рассматриваю две задачи отдельно: recognition-only, где текстовая область уже выделена, и end-to-end OCR, где модель должна сначала найти текст, а затем прочитать его.
+I treat recognition-only OCR, where a text region has already been located, separately from end-to-end OCR, where the system must find text and then read it.
 
-## OCR-системы и причины выбора
+## OCR systems and selection rationale
 
-Я сравниваю несколько подходов: универсальный OCR-движок, готовый пайплайн детекции и распознавания, специализированный распознаватель манги и мультимодальные модели. Такой набор позволяет проверить, как специализация и постановка задачи влияют на результат.
+I compare a general-purpose OCR engine, a detection-and-recognition pipeline, a manga-specific recognizer, and multimodal models. This lets me examine how specialization and task definition affect the results.
 
 ### Tesseract
 
-[Tesseract](https://github.com/tesseract-ocr/tesseract) — открытый OCR-движок общего назначения. Современные версии поддерживают нейросетевое распознавание строк на основе LSTM. В проекте я вызываю его через `pytesseract`, используя японские языковые данные `jpn` и режим `--psm 6`.
+[Tesseract](https://github.com/tesseract-ocr/tesseract) is an open-source, general-purpose OCR engine. Modern versions support LSTM-based neural line recognition. I call it through `pytesseract` with Japanese `jpn` language data and `--psm 6`.
 
-Я включаю Tesseract как базовый вариант универсального OCR, чтобы сравнить его со специализированным распознавателем манги. Проверяю конкретную конфигурацию: её результат не характеризует все возможные настройки Tesseract.
+I include it as a general OCR baseline against manga-specific recognition. The reported result describes the tested configuration, not every possible Tesseract setup.
 
 ### PaddleOCR
 
-[PaddleOCR](https://www.paddleocr.ai/latest/en/version3.x/pipeline_usage/OCR.html) — набор моделей и инструментов для OCR. Его пайплайн разделяет поиск текстовых областей и распознавание их содержимого, возвращая текст, координаты и уверенность.
+[PaddleOCR](https://www.paddleocr.ai/latest/en/version3.x/pipeline_usage/OCR.html) provides OCR models and tools. Its pipeline separates text detection and recognition and returns text, coordinates, and confidence.
 
-Я включаю PaddleOCR в бенчмарк как готовый нейросетевой пайплайн общего назначения. В проекте использую PP-OCRv5. В японской конфигурации приложения загружаются `PP-OCRv5_server_det` и `PP-OCRv5_server_rec`.
+I include it as a ready-to-use neural OCR pipeline and use PP-OCRv5. The application's Japanese configuration loads `PP-OCRv5_server_det` and `PP-OCRv5_server_rec`.
 
-Для первой версии Manga Reader я выбираю PaddleOCR, поскольку он обрабатывает страницу без XML-разметки и возвращает координаты для отображения рамок. Это выбор по функциональности и удобству интеграции. На моих текстовых кропах точность использованной конфигурации оказалась ниже, чем у Manga OCR. Качество детекции полных страниц требует отдельной оценки.
+I choose PaddleOCR for the initial desktop application because it can process a page without XML annotations and provide coordinates for region overlays. This choice is based on functionality and integration. Its tested crop recognition was less accurate than Manga OCR; full-page detection needs its own evaluation.
 
 ### Manga OCR
 
-[Manga OCR](https://github.com/kha-white/manga-ocr) — специализированный распознаватель японского текста с акцентом на мангу. Модель построена с использованием Transformers Vision Encoder Decoder и рассчитана в том числе на вертикальный и горизонтальный текст, фуригану и разные шрифты.
+[Manga OCR](https://github.com/kha-white/manga-ocr) specializes in Japanese text, particularly manga. It uses the Transformers Vision Encoder Decoder framework and addresses vertical and horizontal text, furigana, and varied fonts.
 
-Я выбираю его как вариант с предметной специализацией и проверяю, даёт ли она преимущество на моих данных. В эксперименте передаю готовые текстовые кропы и получаю транскрипции. Модель не возвращает рамки отдельных областей, поэтому для обработки полной страницы ей нужен отдельный этап детекции.
+I include it to test the benefit of domain specialization. I supply prepared text crops and obtain transcriptions. The model does not return separate text-region boxes, so full-page use requires a detection stage.
 
 ### ChatGPT
 
-ChatGPT я включаю как мультимодальный вариант общего назначения. Передаю те же 50 кропов и прошу вернуть только японский текст, без перевода и исправлений. Эталонные транскрипции модели не показываю.
+I include ChatGPT as a general-purpose multimodal option. I provide the same 50 crops and request Japanese transcription without translation or correction. Reference text is not shown to the model.
 
-Мне важно проверить, насколько контекст помогает прочитать сложный фрагмент и в каких случаях приводит к изменению исходного текста. При оценке считаю такие изменения ошибками OCR, даже если полученная фраза выглядит правдоподобно. В исследовании сохранено название сервиса ChatGPT, но не точная версия модели, поэтому я не приписываю результат конкретной архитектуре.
+I examine whether context helps with difficult text and when it instead changes the original wording. Such changes count as OCR errors even when the phrase sounds plausible. The recorded experiment identifies the ChatGPT service but not an exact model version, so I do not attribute its results to a specific architecture.
 
 ### MangaLMM
 
-[MangaLMM](https://github.com/manga109/MangaLMM) — специализированная мультимодальная модель для OCR и ответов на вопросы по манге. В проекте использую веса [`hal-utokyo/MangaLMM`](https://huggingface.co/hal-utokyo/MangaLMM) на основе Qwen2.5-VL-7B.
+[MangaLMM](https://github.com/manga109/MangaLMM) is specialized for manga OCR and visual question answering. I use [`hal-utokyo/MangaLMM`](https://huggingface.co/hal-utokyo/MangaLMM), based on Qwen2.5-VL-7B.
 
-Я выбираю MangaLMM для отдельного эксперимента с полными страницами: модель должна определить расположение текста и вернуть транскрипцию каждой области. Так я могу оценить совместное решение задач детекции и распознавания на официальном MangaOCR test split и исследовать ограничения локального запуска с 6 ГБ VRAM.
+I select it for a separate full-page experiment requiring both region coordinates and transcriptions, evaluated on the official MangaOCR test split with 6 GB VRAM. Its localization and end-to-end scores are separate from crop CER and Exact Match. This experiment is also separate from the desktop application's `qwen3-vl:4b-instruct` analysis component.
 
-Её Precision, Recall и Hmean рассматриваю отдельно от CER и Exact Match на готовых кропах. Этот запуск также отделяю от анализа страниц через `qwen3-vl:4b-instruct` в Manga Reader: это другой компонент приложения.
+## Comparison methodology
 
-## Методология сравнения
+### Tasks and samples
 
-### Задачи и выборки
+I compare crop transcriptions separately from full-page region localization and recognition.
 
-Я разделяю распознавание готовых текстовых областей и OCR полной страницы. В первом случае сравниваю транскрипции, во втором — расположение областей и распознанный текст.
-
-| Эксперимент | Данные | Системы | Метрики |
+| Experiment | Data | Systems | Metrics |
 | --- | --- | --- | --- |
-| Основное сравнение OCR | 3116 кропов Hamlet из Manga109 | Tesseract, PaddleOCR, Manga OCR | CER, Exact Match, пустые ответы, время |
-| Сравнение с ChatGPT | 50 одинаковых кропов из того же набора | Те же три OCR и ChatGPT | CER, Exact Match |
-| OCR полной страницы | 50 изображений официального MangaOCR test split | MangaLMM | Detection и end-to-end Precision, Recall, Hmean |
+| Main OCR comparison | 3116 Hamlet crops from Manga109 | Tesseract, PaddleOCR, Manga OCR | CER, Exact Match, empty predictions, time |
+| ChatGPT comparison | The same fixed 50 crops from that set | The three OCR systems and ChatGPT | CER, Exact Match |
+| Full-page OCR | 50 images from the official MangaOCR test split | MangaLMM | Detection and end-to-end Precision, Recall, Hmean |
 
-Скорость и поведение пяти систем на одном изображении рассматриваю как отдельный качественный тест.
+The five-system test on a single image is a separate qualitative observation.
 
-### Подготовка и фиксация данных
+### Data preparation and sample selection
 
-По XML-аннотациям Hamlet автоматически формирую изображения текстовых областей и CSV с эталонными японскими транскрипциями. Каждая аннотация содержит текст и координаты рамки: `xmin, ymin, xmax, ymax`.
+I generate text crops and a reference CSV from Hamlet XML annotations, which contain the Japanese text and `xmin, ymin, xmax, ymax` coordinates.
 
-Для сравнения с ChatGPT использую `random.seed(42)` и `random.sample(rows, 50)`. Выбор зависит не только от seed, но и от исходного набора и порядка строк CSV. Поэтому при повторном запуске сохраняю список выбранных файлов и соответствие `original_file` и `test_file`.
+The ChatGPT sample uses `random.seed(42)` and `random.sample(rows, 50)`. The selection depends on the input rows and their order as well as the seed. For repetition, I preserve the selected filenames and the `original_file` to `test_file` mapping.
 
-В скрипте подготовки официальной выборки MangaOCR перемешиваю индексы test split с seed = 42 и отбираю первые 50 примеров, для которых доступны локальные изображения. Состав выборки фиксирую в `manifest.jsonl` с идентификаторами, путями и эталонами. Такой отбор ограничен наличием сканов и не гарантирует представительность всего test split.
+The repository's official MangaOCR sample script shuffles test-split indices with seed 42 and selects the first 50 examples whose scans are available locally. `manifest.jsonl` records IDs, paths, and references. This availability-based selection does not guarantee representation of the entire test split.
 
-Для каждого сравнения передаю системам одни и те же кропы. При повторении не смешиваю изображения, подготовленные разными версиями скрипта: текущий `prepare_dataset.py` добавляет по 5 пикселей вокруг текстовой рамки с обрезкой по границам страницы. Изменение отступа или состава данных означает новый вариант эксперимента.
+Each crop comparison uses the same images for all systems. I do not mix crops generated by different script versions. The current `prepare_dataset.py` adds 5 pixels of padding around each text box, clipped to the image boundary. Changing padding or sample composition creates a different experiment variant.
 
-### Условия сравнения
+### Comparison conditions
 
-Я использую готовые веса и сохраняю предсказания до расчёта метрик. Эталон нужен оценщику, но не передаётся OCR или ChatGPT для получения ответа. Для ChatGPT применяю одинаковый запрос ко всем 50 изображениям и прошу вернуть только распознанный японский текст.
+I use pretrained weights and preserve predictions before evaluation. Reference text is used by the evaluator, not passed to OCR or ChatGPT as a transcription hint. ChatGPT receives the same instruction for every crop.
 
-Результаты систем сопоставляю по идентификаторам файлов. Для базовых CSV `evaluate_results.py` проверяет совпадение наборов примеров и нормализованных эталонов, отклоняет пустые CSV и повторяющиеся имена файлов.
+I match outputs by filename. For baseline CSV files, `evaluate_results.py` checks that sample sets and normalized references match, and rejects empty CSV files and duplicate filenames.
 
-В `compare_ocr_test50.py` отсутствующие результаты учитываются в `missing` и исключаются из расчёта метрик соответствующей системы. Поэтому перед интерпретацией сравнения проверяю **`samples = 50` и `missing = 0` для всех четырёх систем**. При пропусках выборки фактически различаются и общего рейтинга по таким значениям я не строю. Пустой ответ существующей строки учитывается в качестве распознавания и отличается от отсутствующей строки.
+`compare_ocr_test50.py` counts unavailable results as `missing` and excludes them from that system's metrics. Before interpreting the comparison, I therefore check **`samples = 50` and `missing = 0` for all four systems**. Missing rows create different effective sample sets. An existing row with an empty response remains part of quality evaluation and is distinct from a missing row.
 
-### Нормализация и метрики текста
+### Text normalization and metrics
 
-Для CER и Exact Match в `evaluate_results.py` и `compare_ocr_test50.py` я одинаково обрабатываю эталон и предсказание:
+For CER and Exact Match, both evaluators apply the same steps to reference and prediction:
 
-1. Привожу Unicode к NFKC.
-2. Удаляю пробелы и переносы строк.
-3. Сравниваю полученные строки без перевода и ручного исправления символов.
+1. Normalize Unicode using NFKC.
+2. Remove whitespace, including line breaks.
+3. Compare the resulting strings without translation or manual character correction.
 
-Обозначаю нормализованный эталон как `g_i`, предсказание как `p_i`, расстояние Левенштейна как `d`, а число примеров как `N`.
+Let `g_i` be a normalized reference, `p_i` a prediction, `d` Levenshtein distance, and `N` the number of examples.
 
 ```text
 CER = sum(d(g_i, p_i)) / sum(len(g_i))
-Exact Match = число примеров с g_i == p_i / N
+Exact Match = number of examples with g_i == p_i / N
 ```
 
-CER считаю по суммарному числу символов всей выборки, а не как среднее отдельных CER. Вставки, удаления и замены учитываются как операции редактирования. CER может превышать 100%, если лишних символов достаточно много. Exact Match принимает значение 1 для полностью совпавшего примера и 0 при любом отличии после нормализации.
+CER is aggregated over all reference characters, rather than averaged over per-sample CER values. Insertions, deletions, and substitutions are edits. CER can exceed 100% when enough extra characters are predicted. Exact Match is 1 for a complete normalized match and 0 otherwise.
 
-В обновлённом базовом runner ошибка вызова сохраняется с пустым предсказанием и статусом ошибки. В `evaluate_results.py` такая строка остаётся в расчёте качества. Пустые ответы дополнительно считаю отдельно.
+The updated baseline runner records a failed call as an empty prediction with an error status. `evaluate_results.py` keeps that row in the quality calculation and also reports empty predictions separately.
 
-### Сопоставление областей MangaLMM
+### MangaLMM region matching
 
-Для результата, приведённого ниже, использую `evaluate_mangaocr_scaled50.py`:
+The reported scaled evaluation uses `evaluate_mangaocr_scaled50.py`:
 
-1. Восстанавливаю размер входа Qwen с теми же настройками процессора и pixel budget, что при распознавании.
-2. Перевожу предсказанные рамки в координаты исходной страницы.
-3. Рассчитываю IoU для пар предсказанных и эталонных рамок.
-4. Оставляю пары с **IoU ≥ 0,5**, сортирую их по убыванию IoU и последовательно выбираю совпадения.
-5. Каждую эталонную и предсказанную область использую не более одного раза.
+1. Recover Qwen's processed image size with the same processor and pixel-budget settings used during inference.
+2. Scale predicted boxes to original-page coordinates.
+3. Calculate IoU between predicted and reference boxes.
+4. Keep pairs with **IoU ≥ 0.5**, sort them by descending IoU, and select matches in that order.
+5. Use each reference and prediction at most once.
 
-Это жадное сопоставление один к одному. Обозначаю число совпадений как `M`, общее число предсказанных областей как `P`, эталонных областей как `G`.
+This is greedy one-to-one matching. Let `M` be matched pairs, `P` predicted regions, and `G` reference regions.
 
 ```text
 Detection Precision = M / P
@@ -111,19 +109,19 @@ Detection Recall = M / G
 Hmean = 2 * Precision * Recall / (Precision + Recall)
 ```
 
-Числители и знаменатели суммируются по всей выборке. Лишние рамки увеличивают число предсказаний без увеличения совпадений, а пропущенные области уменьшают Recall. Страница без распарсенных детекций остаётся в оценке через её эталонные области.
+Counts are aggregated across the sample. Extra boxes increase predictions without increasing matches; missed regions lower recall. A page with no parsed detections still contributes its reference regions.
 
-### End-to-end оценка с учётом текста
+### End-to-end text scoring
 
-Для пространственно сопоставленных пар я дополнительно рассчитываю сходство транскрипций:
+For spatially matched pairs, I calculate transcription similarity:
 
 ```text
 similarity(g, p) = max(0, 1 - d(g, p) / max(len(g), len(p)))
 ```
 
-Если обе строки пусты, сходство принимается равным 1. В scaled evaluator перед этим расчётом удаляются пробельные символы, включая японский полноширинный пробел. **NFKC в этой функции не применяется**, поэтому её нормализация отличается от нормализации CER на кропах.
+Two empty strings have similarity 1. The scaled evaluator removes whitespace, including the Japanese full-width space. **It does not apply NFKC**, unlike the crop CER evaluators.
 
-Пусть `S` — сумма сходств только по пространственно сопоставленным парам. Тогда:
+Let `S` be the summed similarities of spatially matched pairs only.
 
 ```text
 End-to-end Precision = S / P
@@ -131,153 +129,145 @@ End-to-end Recall = S / G
 End-to-end Hmean = 2 * Precision * Recall / (Precision + Recall)
 ```
 
-Непарные области не добавляют сходство. Эти показатели учитывают и расположение, и текст; их нельзя приравнивать к CER или доле точных совпадений. При нулевом знаменателе Precision или Recall оценщик возвращает 0; Hmean также равен 0, если сумма Precision и Recall нулевая.
+Unmatched regions contribute no similarity. These scores incorporate location and text and are not CER or Exact Match. A zero denominator produces precision or recall 0; Hmean is also 0 when precision plus recall is zero.
 
-### Измерение времени и воспроизводимость
+### Timing and reproducibility
 
-В текущем `batch_runner.py` модель инициализируется до цикла обработки. `time_sec` измеряется через `time.perf_counter()` вокруг вызова распознавания, после открытия файла и перевода в RGB. Внутренняя обработка изображения библиотекой входит в этот вызов. Отдельного прогрева и серии повторных замеров runner не выполняет, поэтому первый вызов может включать дополнительные внутренние расходы.
+The current `batch_runner.py` initializes the model before its processing loop. It uses `time.perf_counter()` around the recognition call after file loading and RGB conversion. Internal library preprocessing is included. There is no separate warm-up or repeated timing series, so the first call may include additional initialization costs.
 
-В `evaluate_results.py` среднее время рассчитывается по корректным конечным неотрицательным значениям успешных строк со статусом `ok`. В старом скрипте сравнения 50 кропов время агрегируется по имеющимся числовым значениям без такой фильтрации статуса. Публикуемые исследовательские времена относятся к исходным запускам, а не к повторному замеру обновлённого runner. В таблице с ChatGPT сравниваю качество, без общего рейтинга скорости.
+`evaluate_results.py` averages finite, nonnegative durations from successful `ok` rows. The older 50-crop comparison script averages available numeric times without that status filtering. The published research times belong to the original runs, not a new measurement with the updated runner. I do not rank ChatGPT and the OCR engines together by speed in the 50-crop table.
 
-Для воспроизводимого повторения нужно сохранять выбранные файлы и их эталоны, исходные ответы, настройки моделей и процессора, версии библиотек, режим CPU/GPU и границы замера времени. Полный набор этих данных для всех исходных запусков пока не зафиксирован. Ограничения конкретных результатов указаны рядом с соответствующими таблицами.
+Repetition requires selected files and references, original responses, model and processor settings, library versions, CPU/GPU mode, and timing boundaries. This complete record is not available for every original run. Specific limitations accompany the relevant results below.
 
-## Моё оборудование
+## My hardware
 
-Эксперименты я провожу локально на ноутбуке со следующей конфигурацией:
+I run the experiments locally on this laptop:
 
-| Компонент | Характеристики |
+| Component | Specification |
 | --- | --- |
-| Платформа | ARDOR GAMING, NP5x_60_7x_RNx1 |
-| ОС | Windows 10 Домашняя, x64, сборка 19045 |
-| Процессор | Intel Core i5-12450H, 8 ядер и 12 потоков |
-| Оперативная память | 16 ГБ |
-| Видеокарта | NVIDIA GeForce RTX 4050 Laptop GPU |
-| Выделенная видеопамять | 6 ГБ |
+| Platform | ARDOR GAMING, NP5x_60_7x_RNx1 |
+| Operating system | Windows 10 Home, x64, build 19045 |
+| Processor | Intel Core i5-12450H, 8 cores and 12 threads |
+| RAM | 16 GB |
+| GPU | NVIDIA GeForce RTX 4050 Laptop GPU |
+| Dedicated VRAM | 6 GB |
 
-Объём видеопамяти ограничивает конфигурацию MangaLMM: для локального запуска я использую 4-битную квантизацию и уменьшаю разрешение входного изображения.
+For local MangaLMM inference, I use 4-bit quantization and a reduced input pixel budget to fit the available VRAM.
 
-## 1. Три OCR-системы на 3116 кропах
+## 1. Three OCR systems on 3116 crops
 
-| Система | Примеры | CER ↓ | Exact Match ↑ | Среднее записанное время |
+| System | Samples | CER ↓ | Exact Match ↑ | Average recorded time |
 | --- | ---: | ---: | ---: | ---: |
-| Tesseract | 3116 | 97,74% | 2,54% | 0,552 с |
-| PaddleOCR | 3116 | 81,45% | 4,91% | 0,055 с |
-| Manga OCR | 3116 | 9,13% | 70,64% | 0,241 с |
+| Tesseract | 3116 | 97.74% | 2.54% | 0.552 s |
+| PaddleOCR | 3116 | 81.45% | 4.91% | 0.055 s |
+| Manga OCR | 3116 | 9.13% | 70.64% | 0.241 s |
 
-В исследовательских скриптах для Tesseract использую `lang="jpn"` и `--psm 6`. PaddleOCR настроен на японский язык, PP-OCRv5 и выполнение на GPU, с отключёнными ориентацией документа, исправлением геометрии и ориентацией текстовых строк. Manga OCR загружаю один раз перед пакетной обработкой через `MangaOcr()`.
+The research scripts configure Tesseract with `lang="jpn"` and `--psm 6`. PaddleOCR uses Japanese PP-OCRv5 on GPU with document orientation, unwarping, and text-line orientation disabled. Manga OCR is loaded once before batch processing through `MangaOcr()`.
 
-Для приложения Manga Reader использую отдельную CPU-конфигурацию PaddleOCR. Её время обработки не объединяю с исследовательскими замерами.
+The desktop application has a separate CPU PaddleOCR configuration. I do not combine its timing with these research measurements.
 
-Manga OCR показал лучший результат среди трёх протестированных конфигураций: наименьший CER и наибольшую долю точных совпадений.
+Manga OCR achieved the lowest CER and highest Exact Match among these three configurations. Tesseract produced 19 empty predictions, PaddleOCR 49, and Manga OCR 0. The saved CSV evaluation found no errors by `status`; a missing status column is treated as successful. This indicates call completion, not correct recognition.
 
-В результатах Tesseract было 19 пустых ответов, у PaddleOCR — 49, у Manga OCR — 0. При проверке сохранённых CSV оценщик не обнаружил ошибок по столбцу `status`; если столбец отсутствует, строка считается успешной. Этот признак отражает выполнение вызова, а не правильность транскрипции.
+The conclusions apply to these data and settings. Library versions were not recorded for every original run, so I do not use these times to compare with the current CPU application configuration.
 
-Выводы относятся к выбранным данным и настройкам OCR. Время в таблице получено в исходных запусках. Версии библиотек для каждого исходного запуска не зафиксированы, поэтому я не использую эти значения для сравнения скорости с текущей CPU-конфигурацией Manga Reader.
+## 2. Four systems on the same 50 crops
 
-## 2. Четыре системы на одинаковых 50 кропах
-
-Для сравнения с ChatGPT я выбираю фиксированные 50 примеров с помощью `random.seed(42)` и `random.sample(rows, 50)`. Все четыре системы оцениваю на одних изображениях. ChatGPT получает каждый кроп и одинаковый запрос; эталонную транскрипцию я ему не показываю.
-
-Для ChatGPT использую запрос:
+I select a fixed 50 examples using `random.seed(42)` and `random.sample(rows, 50)` and evaluate all four systems on those images. ChatGPT receives each crop and the same request, without its reference transcription:
 
 > Perform OCR on this cropped Japanese manga text image. Return only the recognized Japanese text. Do not translate, explain, correct, or add anything.
 
-| Система | Примеры | CER ↓ | Exact Match ↑ |
+| System | Samples | CER ↓ | Exact Match ↑ |
 | --- | ---: | ---: | ---: |
-| Tesseract | 50 | 97,92% | 4% |
-| PaddleOCR | 50 | 80,76% | 12% |
-| Manga OCR | 50 | 7,45% | 76% |
-| ChatGPT | 50 | 6,24% | 80% |
+| Tesseract | 50 | 97.92% | 4% |
+| PaddleOCR | 50 | 80.76% | 12% |
+| Manga OCR | 50 | 7.45% | 76% |
+| ChatGPT | 50 | 6.24% | 80% |
 
-На этой выборке CER ChatGPT ниже на 1,21 процентного пункта, а Exact Match выше на 4 процентных пункта, чем у Manga OCR. Это 40 точных совпадений против 38. Я рассматриваю такую разницу как результат небольшой выборки, без вывода о статистически значимом превосходстве.
+ChatGPT's CER is 1.21 percentage points lower and Exact Match 4 percentage points higher than Manga OCR's on this sample: 40 exact matches versus 38. I treat this as a small-sample result, without claiming statistically significant superiority.
 
-**Ограничение воспроизводимости:** для этого запуска сохранена итоговая таблица. Исходные ответы ChatGPT для повторного расчёта в репозитории не опубликованы, версия модели и дата запуска не зафиксированы.
+**Reproducibility limit:** the aggregate results table is retained, but the original ChatGPT responses are not published for recalculation. The model version and run date were not recorded.
 
-### Анализ ошибок
+### Error analysis
 
-При разборе ответов ChatGPT я обращаю внимание на подмену буквального распознавания языковой догадкой. Например, эталон `はいっ` распознан как `ほいっ`. В другом примере модель изменяет фрагмент исходной реплики.
+I examine cases where ChatGPT substitutes a likely phrase for literal transcription. For example, the reference `はいっ` was recognized as `ほいっ`; another response changes part of a longer line.
 
-Даже правдоподобная фраза считается ошибкой OCR, если она отличается от текста на изображении. Поэтому я сопоставляю ответы с эталоном, а не оцениваю их только по связности и естественности.
+A plausible phrase is still an OCR error if it differs from the image. I evaluate against the reference, not only fluency or naturalness.
 
-## 3. MangaLMM на полных страницах
+## 3. MangaLMM on full pages
 
-Для поиска и распознавания текста на странице я использую `hal-utokyo/MangaLMM` на основе Qwen2.5-VL-7B. Модель возвращает координаты областей и японский текст.
+I use `hal-utokyo/MangaLMM`, based on Qwen2.5-VL-7B, to return Japanese text and its region coordinates.
 
-### Конфигурация и ограничения
+### Configuration and constraints
 
-Для запуска использую следующие настройки:
-
-| Параметр | Значение |
+| Parameter | Value |
 | --- | --- |
-| Модель | `hal-utokyo/MangaLMM` |
-| Процессор изображения и токенизатор | `Qwen/Qwen2.5-VL-7B-Instruct` |
-| GPU | RTX 4050 Laptop, 6 ГБ VRAM |
-| Квантизация | 4 бита, NF4 |
-| Тип вычислений | `torch.float16` |
-| Двойная квантизация | `bnb_4bit_use_double_quant=True` |
-| Минимальный бюджет изображения | `MIN_PIXELS = 128 * 28 * 28`, 100352 пикселя |
-| Максимальный бюджет изображения | `MAX_PIXELS = 256 * 28 * 28`, 200704 пикселя |
-| Генерация | `do_sample=False`, `max_new_tokens=1024` |
+| Model | `hal-utokyo/MangaLMM` |
+| Image processor and tokenizer | `Qwen/Qwen2.5-VL-7B-Instruct` |
+| GPU | RTX 4050 Laptop, 6 GB VRAM |
+| Quantization | 4-bit NF4 |
+| Compute dtype | `torch.float16` |
+| Double quantization | `bnb_4bit_use_double_quant=True` |
+| Minimum pixel budget | `MIN_PIXELS = 128 * 28 * 28`, 100352 pixels |
+| Maximum pixel budget | `MAX_PIXELS = 256 * 28 * 28`, 200704 pixels |
+| Generation | `do_sample=False`, `max_new_tokens=1024` |
 
-Таблица соответствует настройкам исследовательского скрипта `run_official_mangaocr_mangallmm.py`.
+These settings correspond to `run_official_mangaocr_mangallmm.py`. Memory limits require reduced image resolution. One processed size is 504 × 364 pixels; the actual size depends on page proportions and processor settings.
 
-Ограничение памяти требует уменьшать входное изображение. Один из размеров после обработки Qwen — 504 × 364 пикселя; фактический размер зависит от пропорций страницы и настроек процессора.
+On full pages, I observe omitted text, inaccurate boxes, and repetitions. I also investigate a 2 × 2 tiled approach, converting local tile boxes to page coordinates, merging outputs, and removing duplicates.
 
-При запуске на полных страницах я наблюдаю пропуски текста, неточные рамки и повторения. Чтобы исследовать альтернативный подход, использую обработку по сетке 2 × 2: перевожу локальные рамки каждого фрагмента в координаты страницы, объединяю результаты и удаляю дубликаты.
+The reported evaluation uses 50 images from the official MangaOCR test split with seed 42, separately from the 50 Hamlet crops. I do not use the table below to claim a quantitative benefit from tiling; that requires separate matched runs.
 
-Итоговую оценку провожу на фиксированной выборке из 50 изображений официального MangaOCR test split, seed = 42. Это отдельная выборка, которая не совпадает с 50 кропами Hamlet. Результаты ниже не использую для количественной оценки преимущества tiled inference: для такого сравнения нужны отдельные согласованные запуски.
+### Correcting coordinate scale
 
-### Исправление масштаба координат
+The initial evaluation found zero spatial matches. Inspection revealed that boxes from the resized input were being compared with original-page references without the necessary scaling.
 
-Первичная оценка дала ноль пространственных совпадений. При проверке я обнаруживаю, что координаты после изменения размера изображения сопоставляются с рамками исходной страницы без необходимого масштабирования.
-
-Для исправления получаю фактический размер изображения на входе Qwen через `image_grid_thw` и рассчитываю коэффициенты:
+I recover the processed image size through `image_grid_thw` and calculate:
 
 ```python
 scale_x = original_width / resized_width
 scale_y = original_height / resized_height
 ```
 
-Затем перевожу предсказанные рамки в координаты исходной страницы. После исправления оценщик находит 37 пространственных совпадений.
+I then map predictions to original-page coordinates. The corrected evaluation finds 37 spatial matches.
 
-### Результаты после исправления координат
+### Results after coordinate correction
 
-Все 50 вызовов завершились без зарегистрированных ошибок выполнения. На 6 страницах не удалось распарсить ни одной детекции.
+All 50 calls completed without registered execution errors. Six pages had no parsed detections.
 
-| Показатель | Значение |
+| Measure | Value |
 | --- | ---: |
-| Изображения | 50 |
-| Эталонные области | 828 |
-| Предсказанные области | 1084 |
-| Пространственные совпадения | 37 |
-| Detection Precision | 3,41% |
-| Detection Recall | 4,47% |
-| Detection Hmean | 3,87% |
-| End-to-end Precision с учётом NED | 0,76% |
-| End-to-end Recall с учётом NED | 1,00% |
-| End-to-end Hmean с учётом NED | 0,86% |
+| Images | 50 |
+| Reference regions | 828 |
+| Predicted regions | 1084 |
+| Spatial matches | 37 |
+| Detection Precision | 3.41% |
+| Detection Recall | 4.47% |
+| Detection Hmean | 3.87% |
+| End-to-end Precision with NED similarity | 0.76% |
+| End-to-end Recall with NED similarity | 1.00% |
+| End-to-end Hmean with NED similarity | 0.86% |
 
-Результаты сохранены в `scaled_eval_50.txt`. В scaled evaluator пространственным совпадением считается пара областей с IoU ≥ 0,5. End-to-end показатели дополнительно учитывают сходство текста через NED.
+Results were recorded in `scaled_eval_50.txt`. The scaled evaluator uses IoU ≥ 0.5 for spatial matches and NED similarity for end-to-end text scoring.
 
-Качество полного OCR в этой конфигурации оказалось низким. Ограничения памяти и разрешения важны для интерпретации результата, но их отдельный вклад в ошибку я не измеряю. Этот эксперимент не воспроизводит условия, в которых авторы MangaLMM оценивали свою модель.
+Full-page OCR quality was low in this configuration. Resolution and memory constraints matter to interpretation, but I did not isolate their individual effects. This experiment does not reproduce the conditions used by MangaLMM's authors.
 
-## 4. Качественное сравнение на одном изображении
+## 4. Qualitative comparison on one image
 
-В дополнительном тесте я сравниваю ответы пяти систем на одном изображении с несколькими панелями манги. В этом тесте рассматриваю найденные фрагменты, ошибки текста и приблизительное время обработки.
+I also compare five systems on one image containing several manga panels, examining text fragments, recognition errors, and approximate processing time.
 
-| Система | Примерное время | Наблюдения |
+| System | Approximate time | Observations |
 | --- | ---: | --- |
-| MangaLMM | 5–6 с | Шесть записей с координатами и текстом, включая две почти совпадающие рамки с одинаковой транскрипцией |
-| Manga OCR | 0,05 с | Одна транскрипция всего переданного изображения; модель не выделяет отдельные текстовые области |
-| PaddleOCR | 0,63 с | Шесть фрагментов ответа с многочисленными ошибками |
-| Tesseract | 0,75 с | Большой объём текста с ошибочными и искажёнными символами |
-| ChatGPT | 2 мин 13 с | Несколько распознанных строк |
+| MangaLMM | 5–6 s | Six text-and-coordinate records, including two nearly identical boxes with the same transcription |
+| Manga OCR | 0.05 s | One transcription for the supplied image; no separate region detection |
+| PaddleOCR | 0.63 s | Six output fragments with numerous recognition errors |
+| Tesseract | 0.75 s | A large amount of output containing incorrect and distorted characters |
+| ChatGPT | 2 min 13 s | Several recognized lines |
 
-Эти значения относятся к одному изображению. Полные параметры замеров и число повторов не зафиксированы, а системы выполняют разные задачи. Поэтому я использую этот тест для анализа поведения моделей, а не для общего рейтинга скорости.
+These measurements concern one image. Full timing parameters and repetition counts were not recorded, and the systems perform different tasks. I use the test to examine behavior, not establish a general speed ranking.
 
-### Повторные детекции
+### Duplicate regions
 
-В ответе MangaLMM есть две записи с одинаковым текстом и почти совпадающими координатами:
+MangaLMM returned two records with the same text and nearly identical coordinates:
 
 ```json
 [
@@ -286,20 +276,20 @@ scale_y = original_height / resized_height
 ]
 ```
 
-IoU этих рамок составляет примерно 0,77. Такие записи я рассматриваю как кандидатов для удаления дубликатов с учётом совпадения текста и расположения. Удалять все повторяющиеся слова нельзя: одинаковая реплика может встречаться в разных местах страницы.
+Their IoU is approximately 0.77. I treat such records as duplicate candidates based on both text and position. Removing every repeated word would be incorrect: the same phrase may occur in different page regions.
 
-Для этого примера не сохранён размер входа модели, поэтому я не использую его для количественной оценки точности рамок.
+The input size for this particular example was not preserved, so I do not use it for quantitative box-accuracy evaluation.
 
-### Наблюдения по результатам теста
+### Observations
 
-MangaLMM возвращает структурированный ответ с координатами, но правильность каждой области всё равно требует проверки. Manga OCR предназначен для готовых текстовых кропов, поэтому число строк в его ответе на целое изображение не характеризует качество детекции. Большой объём вывода Tesseract также не означает высокой точности распознавания.
+MangaLMM returns structured coordinates and text, but each region still needs validation. Manga OCR is intended for prepared text crops, so the number of lines it returns for a whole image does not measure detection quality. More text from Tesseract also does not imply higher accuracy.
 
-## Выводы
+## Conclusions
 
-На 3116 кропах Manga OCR оказался наиболее точным среди трёх протестированных OCR-конфигураций: CER 9,13% и Exact Match 70,64%. На отдельной выборке из 50 кропов ChatGPT получил CER 6,24% и Exact Match 80%, Manga OCR — 7,45% и 76%. Разница составила два полностью распознанных примера, поэтому для более уверенного сравнения нужна расширенная выборка.
+On 3116 crops, Manga OCR was the most accurate of the three baseline configurations, with 9.13% CER and 70.64% Exact Match. On the separate 50-crop sample, ChatGPT achieved 6.24% CER and 80% Exact Match, compared with Manga OCR's 7.45% and 76%. The difference is two completely correct transcriptions; a larger sample is needed for a stronger comparison.
 
-Для полных страниц локальная конфигурация MangaLMM показала Detection Hmean 3,87% и End-to-end Hmean 0,86%. При таком качестве я не рассматриваю её как готовое решение для автоматической обработки манги.
+The local MangaLMM configuration achieved 3.87% Detection Hmean and 0.86% End-to-end Hmean on full pages. At this quality level, I do not consider it ready for automatic manga processing.
 
-Во время оценки я выявляю и исправляю несоответствие систем координат после изменения размера изображения. Это позволяет получить корректное сопоставление рамок и отделить техническую ошибку оценки от фактического качества предсказаний.
+I identified and corrected a coordinate-system mismatch after image resizing, allowing valid box matching and separating an evaluation implementation error from prediction quality.
 
-Дальнейшую работу связываю с повторным запуском на зафиксированных версиях моделей, сохранением полного набора ответов и более подробным исследованием влияния разрешения и обработки по фрагментам.
+Next, I plan to repeat experiments with recorded model versions and complete response artifacts, and study the effects of resolution and tiling more thoroughly.

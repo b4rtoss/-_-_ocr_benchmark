@@ -24,11 +24,11 @@ DETAILS_CSV = BASE / "ocr_comparison_test50_details.csv"
 # ============================================================
 # TEXT NORMALIZATION
 #
-# Для ВСЕХ четырёх систем используется одна и та же обработка:
+# Apply the same normalization to all four systems:
 # - Unicode NFKC
-# - удаление пробелов / переносов строк
+# - remove spaces and line breaks
 #
-# Перевод, исправление японского и замена знаков не выполняются.
+# Do not translate, correct Japanese, or substitute punctuation.
 # ============================================================
 
 def normalize_text(text):
@@ -130,8 +130,8 @@ def read_csv(path):
 # ============================================================
 # FILE KEY
 #
-# На случай если где-то записан полный путь,
-# а где-то только имя файла.
+# Handle both full paths
+# and bare filenames.
 # ============================================================
 
 def file_key(value):
@@ -546,7 +546,7 @@ for model_name in [
     # ---------------------
     # total GT characters
     #
-    # Это основной CER.
+    # This is the primary CER.
     # --------------------------------------------------------
 
     cer = (
